@@ -1,0 +1,105 @@
+---
+title: Keystroke tracking
+description: Learn how TypeSteps tracks your typing activity with privacy-first design
+---
+
+TypeSteps monitors your keyboard activity in real-time to provide insights into your typing patterns. The tracking system is designed to be lightweight, privacy-focused, and non-intrusive.
+
+## What gets tracked
+
+TypeSteps captures specific categories of keystrokes to provide accurate typing metrics:
+
+<CardGroup cols={2}>
+  <Card title="Letters" icon="a">
+    All alphabetic characters (A-Z, a-z) are counted
+  </Card>
+  <Card title="Numbers" icon="0">
+    Numeric digits (0-9) are tracked
+  </Card>
+  <Card title="Punctuation" icon="period">
+    Punctuation marks like periods, commas, and symbols
+  </Card>
+  <Card title="Whitespace" icon="space">
+    Spaces, tabs, and line breaks are included
+  </Card>
+</CardGroup>
+
+## What doesn't get tracked
+
+To protect your privacy and security, TypeSteps explicitly ignores certain key types:
+
+<Info>
+  Modifier keys (Command, Option, Control, Shift) and function keys (F1-F12, Escape, etc.) are not tracked. This ensures sensitive keyboard shortcuts and system commands remain private.
+</Info>
+
+## How it works
+
+The tracking system operates at the system level using macOS Accessibility APIs:
+
+```swift
+// From KeystrokeListener.swift:56-61
+if char.isLetter || char.isNumber || char.isPunctuation || char.isWhitespace {
+    StorageManager.shared.incrementCount(
+        appName: appName, 
+        bundleId: bundleId, 
+        projectName: projectName
+    )
+}
+```
+
+### Permission requirements
+
+TypeSteps requires **Accessibility permission** to monitor global keyboard events. This is a standard macOS permission that allows the app to:
+
+- Listen to keydown events system-wide
+- Identify the active application
+- Extract window titles for project detection (in supported apps)
+
+<Tip>
+  macOS will prompt you to grant Accessibility permission when you first launch TypeSteps. You can also manage this permission in System Settings → Privacy & Security → Accessibility.
+</Tip>
+
+## Pause and resume
+
+You can temporarily pause tracking at any time:
+
+<Accordion title="Pause tracking">
+  When paused, TypeSteps stops counting keystrokes but continues running in the background. Use the menu bar toggle or keyboard shortcut **⌘⇧P** to pause/resume.
+  
+  The menu bar icon changes to show pause status:
+  - Active: `keyboard` icon
+  - Paused: `keyboard.badge.ellipsis` icon
+</Accordion>
+
+## Application tracking
+
+TypeSteps automatically detects which application you're typing in and tracks per-app statistics:
+
+- **App name**: The frontmost application name
+- **Bundle ID**: Used for accurate app identification and icon display
+- **Project detection**: Extracts project names from window titles in supported apps (Xcode, VS Code, Cursor)
+
+<CardGroup cols={3}>
+  <Card title="Xcode" icon="hammer">
+    Detects project name from window title format: `ProjectName — FileName.swift`
+  </Card>
+  <Card title="VS Code" icon="code">
+    Extracts project from format: `FileName - ProjectName`
+  </Card>
+  <Card title="Cursor" icon="code">
+    Same detection as VS Code
+  </Card>
+</CardGroup>
+
+## Performance
+
+The keystroke listener is optimized for minimal system impact:
+
+- Uses global event monitoring with efficient filtering
+- Only increments counters in memory
+- Batches storage operations to UserDefaults
+- No character content is stored or transmitted
+
+<Info>
+  TypeSteps has zero network activity. All tracking happens locally on your Mac.
+</Info>

@@ -1,0 +1,340 @@
+---
+title: Data Storage
+description: How TypeSteps stores and manages typing statistics
+---
+
+TypeSteps stores all data locally using UserDefaults. No data is ever transmitted over the internet unless you opt-in to WakaTime integration.
+
+## UserDefaults Keys
+
+All statistics are stored using these keys:
+
+```swift
+private let statsKey = "typing_stats_daily"
+private let hourlyKey = "typing_stats_hourly"
+private let minuteKey = "typing_stats_minute"
+private let appStatsKey = "typing_stats_apps"
+private let projectStatsKey = "typing_stats_projects"
+private let appBundleMappingKey = "typing_app_bundles"
+private let notifiedKey = "typing_notified_milestones"
+```
+
+See `StorageManager.swift:7-13`
+
+### Additional Settings
+
+```swift
+@AppStorage("wakatime_api_key") var wakaTimeApiKey: String = ""
+@AppStorage("daily_goal") private var dailyGoal = 5000
+@AppStorage("app_theme") private var appTheme = 0
+@AppStorage("has_completed_onboarding") private var hasCompletedOnboarding = false
+```
+
+## Data Structures
+
+### Daily Statistics
+
+Tracks total keystrokes per day:
+
+```swift
+@Published var dailyStats: [String: Int] = [:]
+```
+
+Key format: `"yyyy-MM-dd"` (e.g., `"2026-03-03"`)
+
+Example:
+```json
+{
+  "2026-03-01": 12543,
+  "2026-03-02": 8932,
+  "2026-03-03": 4521
+}
+```
+
+See `StorageManager.swift:17`
+
+### Hourly Statistics
+
+Tracks keystrokes per hour:
+
+```swift
+@Published var hourlyStats: [String: Int] = [:]
+```
+
+Key format: `"yyyy-MM-dd-HH"` (e.g., `"2026-03-03-14"`)
+
+Example:
+```json
+{
+  "2026-03-03-09": 543,
+  "2026-03-03-10": 1234,
+  "2026-03-03-11": 892
+}
+```
+
+See `StorageManager.swift:18`
+
+### Minute Statistics
+
+Tracks keystrokes per minute (limited to last 120 minutes):
+
+```swift
+@Published var minuteStats: [String: Int] = [:]
+```
+
+Key format: `"yyyy-MM-dd-HH-mm"` (e.g., `"2026-03-03-14-30"`)
+
+The storage automatically prunes old data:
+
+```swift
+if minuteStats.count > 120 {
+    let keys = minuteStats.keys.sorted().prefix(minuteStats.count - 120)
+    for key in keys { minuteStats.removeValue(forKey: key) }
+}
+```
+
+See `StorageManager.swift:19,70-73`
+
+### Application Statistics
+
+Tracks keystrokes per application:
+
+```swift
+@Published var appStats: [String: Int] = [:]
+```
+
+Key: Application name (e.g., `"Xcode"`, `"Visual Studio Code"`)
+
+Example:
+```json
+{
+  "Xcode": 5432,
+  "Visual Studio Code": 3210,
+  "Cursor": 2100
+}
+```
+
+See `StorageManager.swift:20`
+
+### Project Statistics
+
+Tracks keystrokes per project (extracted from window titles):
+
+```swift
+@Published var projectStats: [String: Int] = [:]
+```
+
+Example:
+```json
+{
+  "typesteps": 8543,
+  "my-web-app": 3210
+}
+```
+
+See `StorageManager.swift:21`
+
+### App Bundle Mapping
+
+Maps application names to bundle identifiers:
+
+```swift
+@Published var appBundleMapping: [String: String] = [:]
+```
+
+Example:
+```json
+{
+  "Xcode": "com.apple.dt.xcode",
+  "Visual Studio Code": "com.visualstudio.code",
+  "Cursor": "com.todesktop.230313m78xv9jbu"
+}
+```
+
+This mapping is used to:
+- Display app icons in the UI
+- Categorize applications
+- Ensure consistent tracking across app renames
+
+See `StorageManager.swift:22`
+
+## Data Flow
+
+### Incrementing Counts
+
+Every keystroke triggers this method:
+
+```swift
+func incrementCount(for date: Date = Date(), 
+                   appName: String? = nil, 
+                   bundleId: String? = nil, 
+                   projectName: String? = nil) {
+    let dayString = dateFormatter.string(from: date)
+    let hourString = hourlyFormatter.string(from: date)
+    let minuteString = minuteFormatter.string(from: date)
+    
+    dailyStats[dayString] = (dailyStats[dayString] ?? 0) + 1
+    hourlyStats[hourString] = (hourlyStats[hourString] ?? 0) + 1
+    minuteStats[minuteString] = (minuteStats[minuteString] ?? 0) + 1
+    
+    if let appName = appName {
+        appStats[appName] = (appStats[appName] ?? 0) + 1
+        if let bundleId = bundleId { 
+            appBundleMapping[appName] = bundleId 
+        }
+    }
+    
+    if let projectName = projectName { 
+        projectStats[projectName] = (projectStats[projectName] ?? 0) + 1 
+    }
+    
+    // Prune old minute data
+    if minuteStats.count > 120 {
+        let keys = minuteStats.keys.sorted().prefix(minuteStats.count - 120)
+        for key in keys { minuteStats.removeValue(forKey: key) }
+    }
+    
+    checkMilestones(count: dailyStats[dayString] ?? 0, day: dayString)
+    saveStats()
+}
+```
+
+See `StorageManager.swift:55-77`
+
+### Persisting Data
+
+All statistics are persisted to UserDefaults:
+
+```swift
+private func saveStats() {
+    UserDefaults.standard.set(dailyStats, forKey: statsKey)
+    UserDefaults.standard.set(hourlyStats, forKey: hourlyKey)
+    UserDefaults.standard.set(minuteStats, forKey: minuteKey)
+    UserDefaults.standard.set(appStats, forKey: appStatsKey)
+    UserDefaults.standard.set(projectStats, forKey: projectStatsKey)
+    UserDefaults.standard.set(appBundleMapping, forKey: appBundleMappingKey)
+}
+```
+
+See `StorageManager.swift:106-113`
+
+### Loading Data
+
+Data is loaded on initialization:
+
+```swift
+func loadStats() {
+    if let daily = UserDefaults.standard.dictionary(forKey: statsKey) as? [String: Int] { 
+        self.dailyStats = daily 
+    }
+    if let hourly = UserDefaults.standard.dictionary(forKey: hourlyKey) as? [String: Int] { 
+        self.hourlyStats = hourly 
+    }
+    if let minute = UserDefaults.standard.dictionary(forKey: minuteKey) as? [String: Int] { 
+        self.minuteStats = minute 
+    }
+    if let apps = UserDefaults.standard.dictionary(forKey: appStatsKey) as? [String: Int] { 
+        self.appStats = apps 
+    }
+    if let projects = UserDefaults.standard.dictionary(forKey: projectStatsKey) as? [String: Int] { 
+        self.projectStats = projects 
+    }
+    if let mapping = UserDefaults.standard.dictionary(forKey: appBundleMappingKey) as? [String: String] { 
+        self.appBundleMapping = mapping 
+    }
+}
+```
+
+See `StorageManager.swift:46-53`
+
+## Backup and Restore
+
+### BackupData Model
+
+All data can be exported/imported using this structure:
+
+```swift
+struct BackupData: Codable {
+    let dailyStats: [String: Int]
+    let hourlyStats: [String: Int]
+    let minuteStats: [String: Int]
+    let appStats: [String: Int]
+    let projectStats: [String: Int]
+    let appBundleMapping: [String: String]
+    let notifiedMilestones: [String: [Double]]
+    let wakaTimeApiKey: String
+    let dailyGoal: Int
+}
+```
+
+See `StorageManager.swift:394-404`
+
+### Export Data
+
+```swift
+func exportData() -> Data? {
+    let notified = UserDefaults.standard.dictionary(forKey: notifiedKey) as? [String: [Double]] ?? [:]
+    let goal = UserDefaults.standard.integer(forKey: "daily_goal")
+    
+    let backup = BackupData(
+        dailyStats: dailyStats,
+        hourlyStats: hourlyStats,
+        minuteStats: minuteStats,
+        appStats: appStats,
+        projectStats: projectStats,
+        appBundleMapping: appBundleMapping,
+        notifiedMilestones: notified,
+        wakaTimeApiKey: wakaTimeApiKey,
+        dailyGoal: goal
+    )
+    
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = .prettyPrinted
+    return try? encoder.encode(backup)
+}
+```
+
+See `StorageManager.swift:324-343`
+
+### Import Data
+
+```swift
+func importData(from data: Data) -> Bool {
+    guard let backup = try? JSONDecoder().decode(BackupData.self, from: data) else { 
+        return false 
+    }
+    
+    DispatchQueue.main.async {
+        self.dailyStats = backup.dailyStats
+        self.hourlyStats = backup.hourlyStats
+        self.minuteStats = backup.minuteStats
+        self.appStats = backup.appStats
+        self.projectStats = backup.projectStats
+        self.appBundleMapping = backup.appBundleMapping
+        self.wakaTimeApiKey = backup.wakaTimeApiKey
+        
+        UserDefaults.standard.set(backup.dailyGoal, forKey: "daily_goal")
+        UserDefaults.standard.set(backup.notifiedMilestones, forKey: self.notifiedKey)
+        
+        self.saveStats()
+    }
+    return true
+}
+```
+
+See `StorageManager.swift:345-363`
+
+## Privacy Considerations
+
+TypeSteps prioritizes privacy:
+
+1. **No character recording**: Only counts are stored, never actual keystrokes
+2. **Local-only storage**: All data stays on your Mac using UserDefaults
+3. **No analytics**: No telemetry or usage tracking
+4. **Optional WakaTime**: Internet connection only used if you enable WakaTime integration
+
+The only personal data stored:
+- Keystroke counts per time period
+- Application names and bundle IDs
+- Project names (extracted from window titles)
+- WakaTime API key (optional, encrypted in keychain via @AppStorage)

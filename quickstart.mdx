@@ -1,80 +1,284 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick start
+description: Get up and running with TypeSteps in minutes. Grant permissions, explore the dashboard, and start tracking your typing activity.
 ---
 
-## Get started in three steps
+# Quick start
 
-Get your documentation site running locally and make your first customization.
+This guide walks you through launching TypeSteps for the first time, granting necessary permissions, and exploring your typing stats.
 
-### Step 1: Set up your local environment
+## First launch
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+When you launch TypeSteps for the first time, you'll see a two-step onboarding flow.
+
+<Steps>
+  <Step title="Launch the app">
+    Open TypeSteps from your Applications folder or using Spotlight (`Cmd + Space`, then type "TypeSteps").
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    The app will appear in your menu bar with a keyboard icon.
+  </Step>
+  
+  <Step title="Grant Accessibility permission">
+    The onboarding screen explains why TypeSteps needs Accessibility permission:
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    - Monitors keyboard input globally across all apps
+    - All data stays on your device securely
+    - You can revoke permission anytime in System Settings
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    Click **Open System Settings** to grant the permission.
+    
+    <Warning>
+      TypeSteps cannot function without Accessibility permission. This is required to listen for keystrokes system-wide.
+    </Warning>
+    
+    In System Settings:
+    1. Navigate to **Privacy & Security > Accessibility**
+    2. Find TypeSteps in the list (or click **+** to add it)
+    3. Toggle the switch to enable it
+    
+    TypeSteps will automatically detect when the permission is granted and advance to the next step.
+  </Step>
+  
+  <Step title="Enable Open at Login (optional)">
+    The second onboarding step asks if you want TypeSteps to start automatically when you log in.
+    
+    Benefits:
+    - Starts automatically in the background
+    - Lightweight—won't affect Mac performance
+    - You can change this anytime in Settings
+    
+    Toggle the switch to enable, or click **Skip for now** to continue without it.
+  </Step>
+  
+  <Step title="Click Get Started">
+    Click **Get Started** to complete onboarding and see the TypeSteps dashboard!
+  </Step>
+</Steps>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+## Understanding the dashboard
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+The TypeSteps dashboard is divided into several key sections:
 
-### Step 3: Go live
+### Main stats
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+At the top, you'll see your primary typing count based on the selected view:
+
+- **Day**: Letters typed today with an hourly breakdown chart
+- **Week**: Total for the current week with daily bars
+- **Month**: Total for the current month with monthly trends
+
+The activity trend chart uses:
+- **Area chart** for daily view showing typing rhythm throughout the day
+- **Bar charts** for weekly and monthly views
+
+<Note>
+  Click and drag on the chart to see specific data points and exact counts.
+</Note>
+
+### Daily goal progress
+
+In Day view, you'll see a circular progress indicator showing your progress toward your daily goal (default: 5,000 characters).
+
+Adjust your goal using the slider in the **Insights** panel on the right.
+
+### Activity heatmap
+
+The heatmap shows your typing consistency throughout 2026. Each cell represents one day:
+
+- **Darker colors** indicate more typing activity
+- **Light gray** indicates days with no activity
+- **Transparent** cells are future dates
+
+Hover over any cell to see the exact date and character count.
+
+### Top applications
+
+The right sidebar shows which apps you type in most. TypeSteps tracks:
+
+- App name with icon
+- Total character count per app
+- Percentage of total activity
+
+Applications are automatically categorized (Code, Communication, Creation, Browsing, Utility, Other).
+
+### Insights panel
+
+The insights panel displays:
+
+- **Best day**: Your highest typing day ever
+- **Streak**: Consecutive days with typing activity
+- **Peak hour**: The hour you type most (in 24-hour format)
+- **Avg / hour**: Average characters per active hour
+- **Daily goal**: Adjustable target with a slider (1,000–20,000 characters)
+
+### Weekly highlights
+
+See your most active and quietest days this week with quick summary cards.
+
+### The World Tour
+
+Gamified milestones track your lifetime typing progress:
+
+- Keyboard Sprint (10,000 characters)
+- The Tower - Burj Khalifa (50,000)
+- City Explorer - Central Park (250,000)
+- Mountain King - Mt. Everest (1,000,000)
+- Channel Swimmer - English Channel (5,000,000)
+- Grand Tour - Across India (50,000,000)
+
+Progress bars show how close you are to each milestone, and completed milestones show iteration counts.
+
+## Using the menu bar
+
+Click the TypeSteps icon in your menu bar to access quick actions:
+
+### Quick stats
+- **Today**: Current day's character count
+- **This Week**: Weekly total
+- **This Month**: Monthly total
+
+### Actions
+- **Pause Tracking** (`Cmd + Shift + P`): Temporarily stop counting keystrokes
+- **Resume Tracking**: Continue tracking after pausing
+- **Open Dashboard** (`Cmd + D`): Open the main dashboard window
+
+### Settings
+- **Open at Login**: Toggle automatic startup
+- **Quit** (`Cmd + Q`): Close TypeSteps
+
+<Note>
+  The menu bar icon changes to a keyboard with an ellipsis (⋯) when tracking is paused.
+</Note>
+
+## Setting up WakaTime (optional)
+
+If you're a developer, you can link your WakaTime account to see coding-specific metrics.
+
+<Steps>
+  <Step title="Get your API key">
+    Visit [wakatime.com/api](https://wakatime.com/api) and copy your API key.
+  </Step>
+  
+  <Step title="Enter the key in TypeSteps">
+    In the dashboard, scroll to the **WakaTime** section in the right sidebar.
+    
+    Click **Edit**, paste your API key, and click **Save**.
+  </Step>
+  
+  <Step title="View your metrics">
+    TypeSteps will fetch your WakaTime data and display:
+    
+    - **Active**: Total time spent coding today
+    - **Density**: Keystrokes per minute (characters typed ÷ active minutes)
+    
+    Click the refresh icon to manually update WakaTime stats.
+  </Step>
+</Steps>
+
+<Note>
+  Density is calculated as `characters typed / active minutes`. Higher density indicates more focused typing activity.
+</Note>
+
+## Customizing themes
+
+TypeSteps includes multiple themes for light and dark modes.
+
+<Steps>
+  <Step title="Open the theme picker">
+    Click the theme button in the top bar (shows the current theme name with a colored dot).
+  </Step>
+  
+  <Step title="Preview and select">
+    Hover over any theme to preview it in real-time. Themes are grouped into:
+    
+    - **Light**: Bright, readable themes for daytime use
+    - **Dark**: Low-light themes for evening work
+    
+    Click any theme to apply it instantly.
+  </Step>
+</Steps>
+
+## Managing your data
+
+### Backup data
+
+Click the document icon in the top bar, then select **Backup Data** to export all your stats to a JSON file.
+
+### Restore data
+
+Select **Restore Data** to import a previously exported backup. This will replace your current stats.
+
+### Reset data
+
+<Warning>
+  Resetting your data is permanent and cannot be undone. All statistics will be erased.
+</Warning>
+
+Select **Reset Data** from the data options menu to permanently erase all tracking statistics. Your settings (WakaTime API key and daily goal) are preserved.
+
+## Sharing your stats
+
+Click the share icon in the top bar to create a beautiful snapshot of your current stats:
+
+- Main character count
+- Current streak
+- Productivity badge
+- Top category
+- Top applications
+
+Share the image via Messages, Mail, AirDrop, or save it to your files.
+
+## Keyboard shortcuts
+
+- `Cmd + Shift + P`: Pause/resume tracking
+- `Cmd + D`: Open dashboard
+- `Cmd + Q`: Quit TypeSteps
+
+## Tips for effective tracking
+
+<CardGroup cols={2}>
+  <Card title="Enable Open at Login" icon="clock">
+    Ensure TypeSteps starts automatically so you never miss tracking a day
+  </Card>
+  <Card title="Set a realistic goal" icon="target">
+    Start with 5,000 characters and adjust based on your typical workday
+  </Card>
+  <Card title="Use the pause feature" icon="pause">
+    Pause tracking during breaks or personal time for more accurate work insights
+  </Card>
+  <Card title="Check weekly highlights" icon="chart-column">
+    Review your most and least active days to identify productivity patterns
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### TypeSteps isn't counting keystrokes
+
+1. Check that Accessibility permission is enabled in **System Settings > Privacy & Security > Accessibility**
+2. Ensure tracking is not paused (check the menu bar icon)
+3. Try quitting and relaunching TypeSteps
+
+### The app won't open
+
+1. Check macOS version (requires macOS 13+)
+2. Try removing and reinstalling via Homebrew
+3. Check Console.app for crash logs
+
+### Stats look incorrect
+
+TypeSteps counts letters, numbers, punctuation, and whitespace—but not:
+- Modifier keys alone (Shift, Cmd, Ctrl, Option)
+- Function keys (F1–F12)
+- Keyboard shortcuts (e.g., `Cmd + C`)
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
+Now that you're up and running:
 
-<CardGroup cols={2}>
+1. **Start typing!** TypeSteps is now tracking your activity across all apps
+2. **Check back daily** to see your progress and build a streak
+3. **Adjust your goal** based on your typical activity level
+4. **Explore themes** to personalize your dashboard
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+Happy typing!

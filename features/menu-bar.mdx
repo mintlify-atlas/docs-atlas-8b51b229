@@ -1,0 +1,285 @@
+---
+title: Menu bar interface
+description: Access TypeSteps quickly from the macOS menu bar with stats, controls, and keyboard shortcuts
+---
+
+TypeSteps lives in your macOS menu bar, providing instant access to statistics and controls without cluttering your workspace.
+
+## Menu bar label
+
+The menu bar shows real-time information:
+
+```swift
+// From TypeStepsApp.swift:86-90
+label: {
+    HStack {
+        Image(systemName: listener.isPaused ? "keyboard.badge.ellipsis" : "keyboard")
+        Text("\(storage.getCount())")
+    }
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="Active tracking" icon="keyboard">
+    Shows `keyboard` icon with today's keystroke count
+  </Card>
+  <Card title="Paused" icon="pause">
+    Shows `keyboard.badge.ellipsis` icon when tracking is paused
+  </Card>
+</CardGroup>
+
+<Tip>
+  The count updates in real-time as you type, giving you instant feedback on your daily progress.
+</Tip>
+
+## Menu contents
+
+Click the menu bar icon to access the dropdown menu:
+
+### Quick statistics
+
+```swift
+// From TypeStepsApp.swift:56-58
+Text("Today: \(storage.getCount())")
+Text("This Week: \(storage.getWeeklyTotal())")
+Text("This Month: \(storage.getMonthlyTotal())")
+```
+
+Shows at-a-glance metrics for:
+- Today's keystroke count
+- This week's total
+- This month's total
+
+### Pause/Resume tracking
+
+```swift
+// From TypeStepsApp.swift:62-65
+Button(listener.isPaused ? "Resume Tracking" : "Pause Tracking") {
+    listener.isPaused.toggle()
+}
+.keyboardShortcut("p", modifiers: [.command, .shift])
+```
+
+<Info>
+  The button label toggles between "Pause Tracking" and "Resume Tracking" based on current state.
+</Info>
+
+**Keyboard shortcut**: `⌘⇧P` (Command + Shift + P)
+
+When paused:
+- Keystroke counting stops immediately
+- Menu bar icon changes to paused state
+- Background tracking remains inactive until resumed
+
+### Open Dashboard
+
+```swift
+// From TypeStepsApp.swift:67-71
+Button("Open Dashboard") {
+    NSApp.activate(ignoringOtherApps: true)
+    openWindow(id: "dashboard")
+}
+.keyboardShortcut("d")
+```
+
+**Keyboard shortcut**: `⌘D` (Command + D)
+
+Opens the main TypeSteps window with full statistics and visualizations.
+
+<Accordion title="Dashboard features">
+  The dashboard provides:
+  - Interactive charts (hourly, daily, weekly, monthly)
+  - Consistency heatmap
+  - Top applications with icons
+  - Productivity milestones
+  - Theme customization
+  - Data export/import
+  - WakaTime integration
+</Accordion>
+
+### Open at Login
+
+```swift
+// From TypeStepsApp.swift:75-78
+Toggle("Open at Login", isOn: $loginItemEnabled)
+    .onChange(of: loginItemEnabled) { _, newValue in
+        updateLoginItem(enabled: newValue)
+    }
+```
+
+Configures whether TypeSteps launches automatically when you log into macOS.
+
+Implementation:
+
+```swift
+// From TypeStepsApp.swift:164-176
+private func updateLoginItem(enabled: Bool) {
+    do {
+        if enabled {
+            try SMAppService.mainApp.register()
+        } else {
+            try SMAppService.mainApp.unregister()
+        }
+    } catch {
+        print("Failed to toggle login item: \(error)")
+        loginItemEnabled = !enabled // Revert on failure
+    }
+}
+```
+
+<Info>
+  Uses macOS ServiceManagement framework to properly register as a login item. Changes take effect immediately.
+</Info>
+
+### Quit TypeSteps
+
+```swift
+// From TypeStepsApp.swift:82-85
+Button("Quit") {
+    NSApplication.shared.terminate(nil)
+}
+.keyboardShortcut("q")
+```
+
+**Keyboard shortcut**: `⌘Q` (Command + Q)
+
+Completely exits TypeSteps. All statistics are saved automatically before quitting.
+
+## Keyboard shortcuts summary
+
+<CardGroup cols={3}>
+  <Card title="Pause/Resume" icon="keyboard">
+    `⌘⇧P` — Toggle tracking on/off
+  </Card>
+  <Card title="Open Dashboard" icon="window">
+    `⌘D` — Show main window
+  </Card>
+  <Card title="Quit" icon="xmark">
+    `⌘Q` — Exit application
+  </Card>
+</CardGroup>
+
+<Tip>
+  All keyboard shortcuts work globally when TypeSteps is running, even if the menu isn't open.
+</Tip>
+
+## Menu structure
+
+The complete menu hierarchy:
+
+```
+┌─────────────────────────────────┐
+│ Today: 12,450                   │
+│ This Week: 78,302               │
+│ This Month: 215,847             │
+├─────────────────────────────────┤
+│ Pause Tracking         ⌘⇧P     │
+│ Open Dashboard         ⌘D      │
+├─────────────────────────────────┤
+│ ☑ Open at Login                │
+├─────────────────────────────────┤
+│ Quit                   ⌘Q      │
+└─────────────────────────────────┘
+```
+
+## MenuBarExtra implementation
+
+TypeSteps uses SwiftUI's `MenuBarExtra` for native menu bar integration:
+
+```swift
+// From TypeStepsApp.swift:55-98
+MenuBarExtra {
+    // Menu content
+} label: {
+    // Menu bar icon and count
+}
+```
+
+<Accordion title="MenuBarExtra advantages">
+  Benefits of using MenuBarExtra:
+  
+  - Native macOS appearance and behavior
+  - Automatic light/dark mode support
+  - Built-in keyboard shortcut handling
+  - Proper menu positioning and sizing
+  - System-level accessibility support
+</Accordion>
+
+## Real-time updates
+
+The menu bar interface uses SwiftUI's reactive properties:
+
+```swift
+@StateObject private var storage = StorageManager.shared
+@StateObject private var listener = KeystrokeListener.shared
+```
+
+All displayed statistics update automatically when:
+- New keystrokes are tracked
+- Tracking is paused/resumed
+- The day/week/month changes
+
+<Info>
+  StorageManager uses `@Published` properties, so any changes immediately reflect in the menu bar without manual refreshing.
+</Info>
+
+## Integration with Dashboard
+
+The menu bar and dashboard window communicate seamlessly:
+
+### Opening the dashboard
+
+```swift
+// From TypeStepsApp.swift:68-69
+NSApp.activate(ignoringOtherApps: true)
+openWindow(id: "dashboard")
+```
+
+- Brings TypeSteps to the foreground
+- Opens or focuses the dashboard window
+- Maintains menu bar presence
+
+### Onboarding flow
+
+```swift
+// From TypeStepsApp.swift:91-97
+.onReceive(NotificationCenter.default.publisher(for: .showOnboarding)) { _ in
+    showOnboarding = true
+    openWindow(id: "dashboard")
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        NSApp.activate(ignoringOtherApps: true)
+    }
+}
+```
+
+When first launched, TypeSteps:
+1. Shows the menu bar immediately
+2. Opens the dashboard window
+3. Displays onboarding overlay
+4. Requests Accessibility permission
+
+<Tip>
+  The menu bar is always accessible even when the dashboard is closed, making TypeSteps a true background utility.
+</Tip>
+
+## Application activation policy
+
+```swift
+// From TypeStepsApp.swift:7
+NSApp.setActivationPolicy(.regular)
+```
+
+TypeSteps uses `.regular` activation policy, which:
+- Shows in the Dock when dashboard is open
+- Appears in Command-Tab switcher
+- Displays normal application windows
+- Maintains menu bar presence
+
+<Accordion title="Why not .accessory?">
+  While `.accessory` would hide TypeSteps from the Dock, using `.regular` provides better user experience:
+  
+  - Users can easily find and focus the dashboard
+  - Standard window management works as expected
+  - Command-Tab switching is more intuitive
+  - About panel and menus work normally
+</Accordion>

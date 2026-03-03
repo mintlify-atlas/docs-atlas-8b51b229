@@ -1,0 +1,300 @@
+---
+title: Contributing Guide
+description: How to contribute to TypeSteps development
+---
+
+Thank you for your interest in contributing to TypeSteps! This guide will help you get started.
+
+## Code of Conduct
+
+Be respectful, professional, and constructive. TypeSteps is a community project focused on privacy and user experience.
+
+## Ways to Contribute
+
+### Report Issues
+
+Found a bug or have a feature request? Open an issue on GitHub:
+
+1. Check existing issues to avoid duplicates
+2. Use descriptive titles
+3. Include:
+   - macOS version
+   - Xcode version (if building from source)
+   - Steps to reproduce
+   - Expected vs actual behavior
+   - Screenshots if applicable
+
+### Submit Pull Requests
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature-name`
+3. Make your changes following our code standards
+4. Test thoroughly
+5. Commit with clear messages
+6. Push to your fork
+7. Open a pull request
+
+## Code Standards
+
+### Swift Style
+
+Follow Swift best practices:
+
+```swift
+// Good: Clear naming, proper spacing
+func incrementCount(for date: Date = Date(), 
+                   appName: String? = nil, 
+                   bundleId: String? = nil) {
+    let dayString = dateFormatter.string(from: date)
+    dailyStats[dayString] = (dailyStats[dayString] ?? 0) + 1
+    saveStats()
+}
+
+// Bad: Unclear naming, poor spacing
+func inc(d:Date=Date(),a:String?=nil,b:String?=nil){
+let ds=df.string(from:d)
+ds_[ds]=(ds_[ds] ?? 0)+1
+sv()
+}
+```
+
+### Naming Conventions
+
+- **Classes/Structs**: PascalCase (`StorageManager`, `KeystrokeListener`)
+- **Functions/Variables**: camelCase (`incrementCount`, `isAuthorized`)
+- **Constants**: camelCase with descriptive names (`statsKey`, `hourlyKey`)
+- **Published properties**: camelCase (`dailyStats`, `isPaused`)
+
+### SwiftUI Patterns
+
+**Use StateObject for singletons:**
+
+```swift
+@StateObject private var storage = StorageManager.shared
+@StateObject private var listener = KeystrokeListener.shared
+```
+
+**Use AppStorage for persisted settings:**
+
+```swift
+@AppStorage("daily_goal") private var dailyGoal = 5000
+@AppStorage("app_theme") private var appTheme = 0
+```
+
+**Keep views lightweight:**
+
+```swift
+// Good: Extract complex logic to computed properties
+private var chartData: [ActivityPoint] {
+    let rawData: [(label: String, count: Int)]
+    switch selectedTab {
+        case 0: rawData = storage.getTodayHourly()
+        case 1: rawData = storage.getLastSevenDays()
+        case 2: rawData = storage.getLastSixMonths()
+        default: rawData = []
+    }
+    return rawData.map { ActivityPoint(label: $0.label, count: $0.count) }
+}
+
+// Then use in view
+Chart {
+    ForEach(chartData) { point in
+        BarMark(x: .value("L", point.label), y: .value("C", point.count))
+    }
+}
+```
+
+### Documentation
+
+**Add comments for complex logic:**
+
+```swift
+// Xcode titles often look like "ProjectName — FileName.swift"
+if appName == "Xcode" {
+    let components = title.components(separatedBy: " — ")
+    return components.first
+}
+```
+
+**Document public APIs:**
+
+```swift
+/// Increments the keystroke count for the current date and app
+/// - Parameters:
+///   - date: The date to increment (defaults to now)
+///   - appName: Name of the active application
+///   - bundleId: Bundle identifier for the app
+///   - projectName: Extracted project name if available
+func incrementCount(for date: Date = Date(), 
+                   appName: String? = nil, 
+                   bundleId: String? = nil, 
+                   projectName: String? = nil)
+```
+
+### File Organization
+
+Keep related code together:
+
+```
+Sources/
+├── TypeStepsApp.swift        # Main app entry point
+├── Models.swift              # Data models
+├── KeystrokeListener.swift   # Event monitoring
+├── StorageManager.swift      # Data persistence
+├── WakaTimeManager.swift     # WakaTime integration
+├── DashboardView.swift       # Main UI
+├── WelcomeView.swift         # Onboarding UI
+└── Theme.swift               # Theme definitions
+```
+
+## Architecture Principles
+
+### Separation of Concerns
+
+- **Models**: Data structures only
+- **Managers**: Business logic and state
+- **Views**: UI rendering and user interaction
+
+### Single Responsibility
+
+Each class should have one clear purpose:
+
+- `KeystrokeListener`: Monitor keyboard events
+- `StorageManager`: Persist and retrieve data
+- `WakaTimeManager`: WakaTime API integration
+
+### Observable Pattern
+
+Use `@Published` for reactive state updates:
+
+```swift
+class StorageManager: ObservableObject {
+    @Published var dailyStats: [String: Int] = [:]
+    
+    func incrementCount(...) {
+        dailyStats[dayString] = (dailyStats[dayString] ?? 0) + 1
+        // UI automatically updates
+    }
+}
+```
+
+## Testing
+
+### Manual Testing Checklist
+
+Before submitting a PR:
+
+- [ ] App builds without warnings
+- [ ] Onboarding flow works for new users
+- [ ] Keystroke counting is accurate
+- [ ] Menu bar displays correct stats
+- [ ] Dashboard charts render properly
+- [ ] Theme switching works
+- [ ] Pause/resume functions correctly
+- [ ] Data export/import works
+- [ ] App survives quit and relaunch
+
+### Test on Multiple macOS Versions
+
+If possible, test on:
+- macOS 13 (Ventura) - minimum supported
+- macOS 14 (Sonoma)
+- macOS 15 (Sequoia)
+
+## Privacy Guidelines
+
+**NEVER:**
+- Record actual keystrokes or text
+- Send data to external servers (except WakaTime if enabled)
+- Access user files without permission
+- Use analytics or tracking
+
+**ALWAYS:**
+- Store data locally only
+- Use UserDefaults for simple data
+- Ask for explicit permission (Accessibility)
+- Document what data is collected
+
+## Performance Guidelines
+
+### Event Handler Efficiency
+
+The keystroke handler runs on every key press:
+
+```swift
+// Good: Minimal processing
+private func handle(event: NSEvent) {
+    guard !isPaused else { return }  // Fast exit
+    
+    // Lightweight operations only
+    let frontmost = NSWorkspace.shared.frontmostApplication
+    guard let characters = event.charactersIgnoringModifiers else { return }
+    
+    for char in characters {
+        if char.isLetter || char.isNumber || char.isPunctuation || char.isWhitespace {
+            DispatchQueue.main.async {
+                StorageManager.shared.incrementCount(...)
+            }
+        }
+    }
+}
+
+// Bad: Heavy processing
+private func handle(event: NSEvent) {
+    // Don't do this in the event handler!
+    fetchDataFromAPI()
+    processLargeFile()
+    updateComplexUI()
+}
+```
+
+### Memory Management
+
+Limit stored data:
+
+```swift
+// Good: Automatic pruning
+if minuteStats.count > 120 {
+    let keys = minuteStats.keys.sorted().prefix(minuteStats.count - 120)
+    for key in keys { minuteStats.removeValue(forKey: key) }
+}
+```
+
+## Git Commit Messages
+
+Write clear, descriptive commits:
+
+```bash
+# Good
+git commit -m "Add project name extraction for VS Code"
+git commit -m "Fix theme picker not updating preview"
+git commit -m "Optimize minute stats pruning performance"
+
+# Bad
+git commit -m "fix bug"
+git commit -m "update code"
+git commit -m "wip"
+```
+
+### Commit Message Format
+
+```
+<type>: <description>
+
+[optional body]
+```
+
+**Types:**
+- `feat`: New feature
+- `fix`: Bug fix
+- `refactor`: Code restructuring
+- `perf`: Performance improvement
+- `docs`: Documentation
+- `style`: Formatting, no code change
+- `test`: Adding tests
+
+## Questions?
+
+Not sure about something? Open a discussion on GitHub or comment on an existing issue.
+
+We're here to help!

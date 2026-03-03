@@ -1,0 +1,416 @@
+---
+title: Insights
+description: Explore comprehensive statistics about your typing activity across time periods and applications
+---
+
+TypeSteps provides rich insights into your typing patterns with visualizations and metrics that help you understand your productivity habits.
+
+## Time-based statistics
+
+View your typing activity across different time periods:
+
+<CardGroup cols={3}>
+  <Card title="Daily" icon="calendar-day">
+    Keystroke count for today with hourly breakdown
+  </Card>
+  <Card title="Weekly" icon="calendar-week">
+    Total keystrokes this week with daily trend
+  </Card>
+  <Card title="Monthly" icon="calendar">
+    Current month's activity with historical comparison
+  </Card>
+</CardGroup>
+
+### Daily insights
+
+```swift
+// From StorageManager.swift:104
+func getCount(for date: Date = Date()) -> Int {
+    return dailyStats[dateFormatter.string(from: date)] ?? 0
+}
+```
+
+The daily view shows:
+- Total keystrokes today
+- Hourly activity chart (24-hour breakdown)
+- Goal progress percentage
+- Today's date subtitle
+
+### Weekly totals
+
+```swift
+// From StorageManager.swift:221-229  
+func getWeeklyTotal() -> Int {
+    let calendar = Calendar.current
+    let now = Date()
+    let startOfWeek = calendar.date(
+        from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)
+    )!
+    return dailyStats.reduce(0) { total, entry in
+        guard let date = dateFormatter.date(from: entry.key) else { return total }
+        return date >= startOfWeek ? total + entry.value : total
+    }
+}
+```
+
+### Monthly aggregation
+
+```swift
+// From StorageManager.swift:231-239
+func getMonthlyTotal() -> Int {
+    let calendar = Calendar.current
+    let now = Date()
+    let startOfMonth = calendar.date(
+        from: calendar.dateComponents([.year, .month], from: now)
+    )!
+    return dailyStats.reduce(0) { total, entry in
+        guard let date = dateFormatter.date(from: entry.key) else { return total }
+        return date >= startOfMonth ? total + entry.value : total
+    }
+}
+```
+
+## Activity trend charts
+
+Visualize your typing patterns with interactive charts:
+
+### Hourly activity (Day view)
+
+```swift
+// From StorageManager.swift:241-250
+func getTodayHourly() -> [(label: String, count: Int)] {
+    let today = dateFormatter.string(from: Date())
+    var result: [(label: String, count: Int)] = []
+    for hour in 0..<24 {
+        let label = String(format: "%02d:00", hour)
+        let key = "\(today)-\(String(format: "%02d", hour))"
+        result.append((label: label, count: hourlyStats[key] ?? 0))
+    }
+    return result
+}
+```
+
+<Info>
+  The day view shows an area chart with gradient fill, displaying all 24 hours with your peak typing times highlighted.
+</Info>
+
+### Last seven days (Week view)
+
+```swift
+// From StorageManager.swift:252-263
+func getLastSevenDays() -> [(label: String, count: Int)] {
+    let calendar = Calendar.current
+    var result: [(label: String, count: Int)] = []
+    let displayFormatter = DateFormatter()
+    displayFormatter.dateFormat = "E" // Mon, Tue, Wed...
+    
+    for i in (0..<7).reversed() {
+        if let date = calendar.date(byAdding: .day, value: -i, to: Date()) {
+            let key = dateFormatter.string(from: date)
+            result.append((label: displayFormatter.string(from: date), count: dailyStats[key] ?? 0))
+        }
+    }
+    return result
+}
+```
+
+### Last six months (Month view)
+
+```swift
+// From StorageManager.swift:265-280
+func getLastSixMonths() -> [(label: String, count: Int)] {
+    // Groups all daily stats by month and returns totals
+    // Labels: Jan, Feb, Mar, Apr, May, Jun
+}
+```
+
+<Tip>
+  Click on the chart to see exact keystroke counts for specific hours, days, or months.
+</Tip>
+
+## Heatmap visualization
+
+The consistency heatmap shows your entire year at a glance:
+
+```swift
+// From DashboardView.swift:537-543
+private func heatmapCell(dayOfYear: Int) -> some View {
+    let intensity = min(1.0, Double(count) / Double(max(1, dailyGoal)))
+    return RoundedRectangle(cornerRadius: 1.5)
+        .fill(count > 0 ? accent.opacity(0.2 + intensity * 0.8) : borderColor.opacity(0.3))
+        .onHover { hovering in 
+            if hovering { hoveredDay = key; hoveredCount = count }
+        }
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="Color intensity" icon="droplet">
+    Darker colors indicate more activity. Intensity scales based on your daily goal.
+  </Card>
+  <Card title="Hover details" icon="info">
+    Hover over any day to see the exact date and keystroke count.
+  </Card>
+</CardGroup>
+
+## Key metrics
+
+### Best day
+
+```swift
+// From StorageManager.swift:282-285
+func getBestDay() -> (date: String, count: Int) {
+    let best = dailyStats.max { $0.value < $1.value }
+    return (date: best?.key ?? "N/A", count: best?.value ?? 0)
+}
+```
+
+Your highest keystroke count in a single day.
+
+### Current streak
+
+```swift  
+// From StorageManager.swift:305-322
+func getCurrentStreak() -> Int {
+    var currentStreak = 0
+    var checkDate = Date()
+    
+    while true {
+        let key = dateFormatter.string(from: checkDate)
+        if let count = dailyStats[key], count > 0 {
+            currentStreak += 1
+            checkDate = calendar.date(byAdding: .day, value: -1, to: checkDate)
+        } else {
+            if calendar.isDateInToday(checkDate) {
+                // Skip today if no activity yet
+                checkDate = calendar.date(byAdding: .day, value: -1, to: checkDate)
+                continue
+            }
+            break
+        }
+    }
+    return currentStreak
+}
+```
+
+Consecutive days with at least one keystroke.
+
+<Accordion title="Streak calculation logic">
+  - Starts from today and counts backward
+  - Breaks when a day has zero keystrokes
+  - Skips today if you haven't typed yet
+  - Displays as "X days" in the insights panel
+</Accordion>
+
+### Peak hour
+
+```swift
+// From StorageManager.swift:289-297
+func getPeakHour() -> (hour: Int, count: Int) {
+    var hourCounts = [Int: Int]()
+    for (key, count) in hourlyStats {
+        let components = key.split(separator: "-")
+        if components.count == 4, let hour = Int(components[3]) {
+            hourCounts[hour] = (hourCounts[hour] ?? 0) + count
+        }
+    }
+    if let maxEntry = hourCounts.max(by: { $0.value < $1.value }) {
+        return (hour: maxEntry.key, count: maxEntry.value)
+    }
+    return (hour: 0, count: 0)
+}
+```
+
+The hour of day when you type most across all tracked days.
+
+### Average per hour
+
+```swift
+// From StorageManager.swift:299-303
+func getAveragePerHour() -> Int {
+    let activeHours = hourlyStats.filter { $0.value > 0 }
+    guard !activeHours.isEmpty else { return 0 }
+    return activeHours.reduce(0) { $0 + $1.value } / activeHours.count
+}
+```
+
+Your average keystroke count during active hours.
+
+## Weekly highlights
+
+### Most active day this week
+
+```swift
+// From StorageManager.swift:203-213
+func getMostActiveDayThisWeek() -> (date: String, count: Int)? {
+    let calendar = Calendar.current
+    let now = Date()
+    let startOfWeek = calendar.date(
+        from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)
+    )!
+    let weekStats = dailyStats.filter { entry in
+        guard let date = dateFormatter.date(from: entry.key) else { return false }
+        return date >= startOfWeek
+    }
+    guard let maxEntry = weekStats.max(by: { $0.value < $1.value }) else { return nil }
+    return (date: maxEntry.key, count: maxEntry.value)
+}
+```
+
+### Quietest day ever
+
+```swift
+// From StorageManager.swift:215-219
+func getQuietestDay() -> (date: String, count: Int)? {
+    guard !dailyStats.isEmpty else { return nil }
+    guard let minEntry = dailyStats.min(by: { $0.value < $1.value }) else { return nil }
+    return (date: minEntry.key, count: minEntry.value)
+}
+```
+
+## Application breakdown
+
+### Top applications
+
+```swift
+// From StorageManager.swift:115-117
+func getTopApps(limit: Int = 5) -> [(name: String, count: Int)] {
+    return appStats.sorted { $0.value > $1.value }
+        .prefix(limit)
+        .map { (name: $0.key, count: $0.value) }
+}
+```
+
+Shows your most-used apps with:
+- App name and icon
+- Total keystroke count
+- Percentage bar relative to total activity
+
+<Info>
+  App icons are loaded from bundle IDs for accurate representation. If an icon can't be found, a keyboard symbol is shown.
+</Info>
+
+### Category statistics
+
+```swift
+// From StorageManager.swift:150-157
+func getCategoryStats() -> [(category: AppCategory, count: Int)] {
+    var counts: [AppCategory: Int] = [:]
+    for (appName, count) in appStats {
+        let cat = categorize(appName: appName, bundleId: appBundleMapping[appName])
+        counts[cat] = (counts[cat] ?? 0) + count
+    }
+    return AppCategory.allCases
+        .map { (category: $0, count: counts[$0] ?? 0) }
+        .filter { $0.count > 0 }
+        .sorted { $0.count > $1.count }
+}
+```
+
+Apps are categorized into:
+
+<CardGroup cols={3}>
+  <Card title="Code" icon="code">
+    IDEs, terminals, dev tools
+  </Card>
+  <Card title="Communicate" icon="messages">
+    Slack, Discord, email, chat
+  </Card>
+  <Card title="Create" icon="paintbrush">
+    Design, writing, productivity apps
+  </Card>
+  <Card title="Browsing" icon="globe">
+    Safari, Chrome, Firefox, Arc
+  </Card>
+  <Card title="Utility" icon="gear">
+    System apps, calendar, notes
+  </Card>
+  <Card title="Other" icon="app">
+    Uncategorized applications
+  </Card>
+</CardGroup>
+
+### Top projects
+
+```swift
+// From StorageManager.swift:159-161
+func getTopProjects(limit: Int = 5) -> [(name: String, count: Int)] {
+    return projectStats.sorted { $0.value > $1.value }
+        .prefix(limit)
+        .map { (name: $0.key, count: $0.value) }
+}
+```
+
+Shows which code projects you've worked on most (for supported IDEs).
+
+## Productivity milestones
+
+### The World Tour
+
+```swift
+// From StorageManager.swift:163-178
+func getLibraryStats() -> [(milestone: String, iterations: Double, progress: Double)] {
+    let total = Double(getTotalAllTime())
+    let milestones = [
+        ("Keyboard Sprint (100m)", 10000.0),
+        ("The Tower (Burj Khalifa)", 50000.0),
+        ("City Explorer (Central Park)", 250000.0),
+        ("Mountain King (Mt. Everest)", 1000000.0),
+        ("Channel Swimmer (English Channel)", 5000000.0),
+        ("Grand Tour (Across India)", 50000000.0)
+    ]
+    return milestones.map { name, chars in
+        let progress = min(1.0, total / chars)
+        let iterations = total / chars
+        return (name, iterations, progress)
+    }
+}
+```
+
+<Accordion title="Milestone achievements">
+  Each milestone represents a real-world achievement:
+  
+  - **Keyboard Sprint**: 10,000 keystrokes (100 meters)
+  - **The Tower**: 50,000 keystrokes (Burj Khalifa height)
+  - **City Explorer**: 250,000 keystrokes (Central Park perimeter)
+  - **Mountain King**: 1,000,000 keystrokes (Mt. Everest height)
+  - **Channel Swimmer**: 5,000,000 keystrokes (English Channel distance)
+  - **Grand Tour**: 50,000,000 keystrokes (Across India)
+  
+  Progress bars show completion percentage and number of times completed.
+</Accordion>
+
+### Productivity badge
+
+```swift
+// From StorageManager.swift:194-201
+func getProductivityBadge() -> (label: String, color: Color) {
+    let streak = getCurrentStreak()
+    let todayCount = getCount()
+    if streak >= 30 { return ("UNSTOPPABLE", .red) }
+    if streak >= 7 { return ("CONSISTENT", .orange) }
+    if todayCount >= dailyGoal { return ("GOAL GETTER", .green) }
+    return ("ON THE RISE", .blue)
+}
+```
+
+Earned based on your activity:
+- **UNSTOPPABLE**: 30+ day streak (red)
+- **CONSISTENT**: 7+ day streak (orange)  
+- **GOAL GETTER**: Met daily goal (green)
+- **ON THE RISE**: Default badge (blue)
+
+## Total all-time count
+
+```swift
+// From StorageManager.swift:287
+func getTotalAllTime() -> Int { 
+    return dailyStats.values.reduce(0, +) 
+}
+```
+
+The sum of all keystrokes ever tracked, displayed in the heatmap section.
+
+<Tip>
+  All insights update in real-time as you type. The dashboard uses SwiftUI's `@Published` properties to reactively display your latest statistics.
+</Tip>

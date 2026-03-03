@@ -1,0 +1,244 @@
+---
+title: Privacy
+description: TypeSteps is built with privacy-first principles—all data stays on your Mac
+---
+
+Your privacy is the foundation of TypeSteps. The app is designed to track typing activity without compromising your security or collecting sensitive information.
+
+## Core privacy principles
+
+<CardGroup cols={2}>
+  <Card title="Local-only storage" icon="lock">
+    All data is stored locally on your Mac using UserDefaults. Nothing is sent to external servers.
+  </Card>
+  <Card title="No character recording" icon="eye-slash">
+    TypeSteps never records what you type—only counts keystrokes.
+  </Card>
+  <Card title="No network activity" icon="wifi-slash">
+    Zero network requests. The app functions entirely offline.
+  </Card>
+  <Card title="No analytics or telemetry" icon="chart-line-up">
+    No usage tracking, crash reporting, or third-party analytics.
+  </Card>
+</CardGroup>
+
+## What gets stored
+
+TypeSteps stores only aggregated, non-sensitive data in macOS UserDefaults:
+
+### Daily statistics
+
+```swift
+// From StorageManager.swift:7
+private let statsKey = "typing_stats_daily"
+```
+
+Stores keystroke counts grouped by date (format: `yyyy-MM-dd`):
+
+```json
+{
+  "2026-03-03": 12450,
+  "2026-03-02": 9823,
+  "2026-03-01": 11204
+}
+```
+
+### Hourly statistics
+
+```swift
+// From StorageManager.swift:8
+private let hourlyKey = "typing_stats_hourly"
+```
+
+Tracks activity by hour (format: `yyyy-MM-dd-HH`):
+
+```json
+{
+  "2026-03-03-09": 1450,
+  "2026-03-03-10": 2103,
+  "2026-03-03-11": 1876
+}
+```
+
+### Minute-level data
+
+```swift
+// From StorageManager.swift:9
+private let minuteKey = "typing_stats_minute"
+```
+
+Stores recent activity at minute granularity, automatically pruned to the last 120 minutes:
+
+<Info>
+  Minute-level data is used for real-time density calculations with WakaTime integration. Older data is automatically deleted to minimize storage.
+</Info>
+
+### Application statistics
+
+```swift
+// From StorageManager.swift:10-12
+private let appStatsKey = "typing_stats_apps"
+private let projectStatsKey = "typing_stats_projects"  
+private let appBundleMappingKey = "typing_app_bundles"
+```
+
+Tracks which apps you type in most, using only:
+- Application name (e.g., "Visual Studio Code")
+- Bundle identifier (e.g., "com.microsoft.VSCode")
+- Project name (when detectable from window title)
+
+<Accordion title="Example app data">
+  ```json
+  {
+    "Visual Studio Code": 45230,
+    "Xcode": 32104,
+    "Slack": 8903
+  }
+  ```
+  
+  No window content, file names, or typed text is ever stored.
+</Accordion>
+
+## What is NOT stored
+
+<CardGroup cols={2}>
+  <Card title="Typed content" icon="keyboard">
+    The actual characters you type are never recorded, logged, or stored.
+  </Card>
+  <Card title="Passwords" icon="key">
+    All keystrokes are counted equally—TypeSteps cannot distinguish password fields.
+  </Card>
+  <Card title="File names" icon="file">
+    Only project names are extracted from window titles in supported IDEs.
+  </Card>
+  <Card title="URLs" icon="link">
+    Browser activity is tracked by app name only, not visited URLs.
+  </Card>
+</CardGroup>
+
+## Data persistence with UserDefaults
+
+All statistics are stored using macOS UserDefaults, Apple's built-in preference storage system:
+
+```swift
+// From StorageManager.swift:106-112
+private func saveStats() {
+    UserDefaults.standard.set(dailyStats, forKey: statsKey)
+    UserDefaults.standard.set(hourlyStats, forKey: hourlyKey)
+    UserDefaults.standard.set(minuteStats, forKey: minuteKey)
+    UserDefaults.standard.set(appStats, forKey: appStatsKey)
+    UserDefaults.standard.set(projectStats, forKey: projectStatsKey)
+    UserDefaults.standard.set(appBundleMapping, forKey: appBundleMappingKey)
+}
+```
+
+<Tip>
+  UserDefaults data is stored in your Mac's Library folder at:
+  `~/Library/Preferences/com.falakgala.typesteps.plist`
+</Tip>
+
+## WakaTime integration (optional)
+
+If you choose to enable WakaTime integration:
+
+- Your API key is stored locally using `@AppStorage`
+- TypeSteps makes requests to WakaTime's API to fetch your coding time
+- Only coding duration is retrieved—no keystroke data is sent to WakaTime
+- You can remove the API key at any time to disable integration
+
+```swift
+// From StorageManager.swift:15
+@AppStorage("wakatime_api_key") var wakaTimeApiKey: String = ""
+```
+
+## Data export and backup
+
+You have full control over your data:
+
+### Export data
+
+Export all statistics as a JSON file for backup or transfer:
+
+```swift
+// From StorageManager.swift:324-343
+func exportData() -> Data? {
+    let backup = BackupData(
+        dailyStats: dailyStats,
+        hourlyStats: hourlyStats,
+        minuteStats: minuteStats,
+        appStats: appStats,
+        projectStats: projectStats,
+        appBundleMapping: appBundleMapping,
+        notifiedMilestones: notified,
+        wakaTimeApiKey: wakaTimeApiKey,
+        dailyGoal: goal
+    )
+    return try? encoder.encode(backup)
+}
+```
+
+### Import data
+
+Restore from a previously exported JSON file:
+
+<Accordion title="Import process">
+  1. Click the data options button in the menu bar
+  2. Select "Restore Data"
+  3. Choose your backup JSON file
+  4. All statistics and settings are restored
+</Accordion>
+
+### Reset data
+
+Permanently erase all tracking data:
+
+<Warning>
+  Resetting data is permanent and cannot be undone. Export a backup first if you want to preserve your statistics.
+</Warning>
+
+```swift
+// From StorageManager.swift:365-391
+func resetStats() {
+    dailyStats = [:]
+    hourlyStats = [:]
+    minuteStats = [:]
+    appStats = [:]
+    projectStats = [:]
+    appBundleMapping = [:]
+    
+    // Remove from UserDefaults
+    UserDefaults.standard.removeObject(forKey: statsKey)
+    UserDefaults.standard.removeObject(forKey: hourlyKey)
+    // ... etc
+}
+```
+
+## Security considerations
+
+<CardGroup cols={2}>
+  <Card title="Accessibility API" icon="shield-check">
+    TypeSteps uses macOS Accessibility APIs responsibly—only to count keystrokes, not to read content.
+  </Card>
+  <Card title="Code transparency" icon="code">
+    The app is built with SwiftUI and all data handling is visible in the source code.
+  </Card>
+  <Card title="No third parties" icon="users-slash">
+    Zero dependencies on analytics services, crash reporters, or ad networks.
+  </Card>
+  <Card title="Sandboxed storage" icon="box">
+    All data is stored within the app's sandboxed container, isolated from other apps.
+  </Card>
+</CardGroup>
+
+## Open source transparency
+
+TypeSteps' source code is available for review, allowing you to verify:
+
+- Exactly what data is collected
+- How it's stored and processed  
+- That no network requests are made
+- Privacy claims are accurate
+
+<Tip>
+  If you have privacy concerns or questions, you can inspect the source code directly to see how your data is handled.
+</Tip>

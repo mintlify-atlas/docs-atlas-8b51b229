@@ -1,0 +1,233 @@
+---
+title: macOS Permissions
+description: Grant Accessibility permissions to enable keystroke tracking
+---
+
+TypeSteps requires macOS Accessibility permissions to track your typing activity. This guide explains why these permissions are needed and how to grant them.
+
+## Why Accessibility Permissions?
+
+TypeSteps uses macOS Accessibility APIs to:
+
+- Monitor global keyboard events across all applications
+- Count keystrokes in real-time
+- Track which applications you're typing in
+- Identify project names from window titles
+- Provide accurate typing statistics
+
+<Note>
+  **Privacy First**: TypeSteps only counts keystrokes. It does NOT record or store what you type. All data stays on your Mac.
+</Note>
+
+## Granting Permissions
+
+### First Launch (Onboarding)
+
+When you first launch TypeSteps, you'll see an onboarding flow:
+
+<Steps>
+  <Step title="Welcome Screen">
+    The app will explain what permissions are needed and why
+  </Step>
+
+  <Step title="Permission Prompt">
+    Click **Grant Permission** to open System Settings
+    
+    TypeSteps will call:
+    ```swift
+    let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
+    let trusted = AXIsProcessTrustedWithOptions(options as CFDictionary)
+    ```
+    
+    This triggers the macOS permission prompt automatically.
+  </Step>
+
+  <Step title="System Settings Opens">
+    macOS will open **System Settings** > **Privacy & Security** > **Accessibility**
+  </Step>
+
+  <Step title="Enable TypeSteps">
+    1. Find **TypeSteps** in the list
+    2. Toggle the switch to **ON**
+    3. You may need to unlock with your password or Touch ID
+    
+    <Warning>
+      If TypeSteps isn't in the list, try clicking the **+** button and manually adding the TypeSteps app from your Applications folder.
+    </Warning>
+  </Step>
+
+  <Step title="Return to TypeSteps">
+    Once enabled, return to TypeSteps. The app will automatically detect the permission change and start tracking.
+  </Step>
+</Steps>
+
+### Manual Permission Check
+
+If you need to verify or re-enable permissions later:
+
+1. Open **System Settings** (or System Preferences on older macOS)
+2. Go to **Privacy & Security**
+3. Select **Accessibility** from the sidebar
+4. Locate **TypeSteps** in the list
+5. Ensure the toggle is **ON**
+
+## Permission States
+
+TypeSteps checks permissions in two ways:
+
+### Interactive Check
+
+Used during onboarding (KeystrokeListener.swift:15-21):
+
+```swift
+func checkPermissions() {
+    let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
+    let trusted = AXIsProcessTrustedWithOptions(options as CFDictionary)
+    DispatchQueue.main.async {
+        self.isAuthorized = trusted
+    }
+}
+```
+
+This will show the system prompt if permissions aren't granted.
+
+### Silent Check
+
+Used when the app starts automatically (KeystrokeListener.swift:23-29):
+
+```swift
+func checkPermissionsSilently() -> Bool {
+    let trusted = AXIsProcessTrusted()
+    DispatchQueue.main.async {
+        self.isAuthorized = trusted
+    }
+    return trusted
+}
+```
+
+This checks without prompting, used when app launches at login.
+
+## How Tracking Works
+
+Once permissions are granted, TypeSteps:
+
+1. **Starts Global Event Monitor**: Listens to all keyboard events system-wide
+2. **Filters Valid Characters**: Only counts letters, numbers, punctuation, and whitespace
+3. **Tracks Context**: Identifies the active application and project
+4. **Respects Privacy**: Never stores the actual characters typed
+
+From KeystrokeListener.swift:31-36:
+
+```swift
+func startListening() {
+    guard eventMonitor == nil else { return }
+    eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in
+        self.handle(event: event)
+    }
+}
+```
+
+## Troubleshooting Permissions
+
+### Permission Prompt Not Showing
+
+<Accordion title="Solution Steps">
+  1. Quit TypeSteps completely
+  2. Open **System Settings** > **Privacy & Security** > **Accessibility**
+  3. Remove TypeSteps from the list (click `-` button)
+  4. Restart your Mac
+  5. Launch TypeSteps again - the prompt should appear
+</Accordion>
+
+### TypeSteps Not in Accessibility List
+
+<Accordion title="Manual Addition">
+  1. Open System Settings > Privacy & Security > Accessibility
+  2. Click the **lock icon** to unlock (enter password)
+  3. Click the **+** button
+  4. Navigate to Applications folder
+  5. Select **TypeSteps.app**
+  6. Click **Open**
+  7. Toggle it **ON**
+</Accordion>
+
+### Permission Granted But Not Tracking
+
+<Accordion title="Verification Steps">
+  1. Check that TypeSteps is in the Accessibility list and enabled
+  2. Restart TypeSteps completely (Quit from menu bar, relaunch)
+  3. Verify tracking isn't paused (menu bar shows keyboard icon, not keyboard.badge.ellipsis)
+  4. Open TypeSteps dashboard to see real-time counts
+  5. Type something - the count should increase immediately
+  
+  If still not working, see [Troubleshooting Guide](/guides/troubleshooting).
+</Accordion>
+
+### Permission Revoked After macOS Update
+
+<Accordion title="Reset Permissions">
+  Sometimes macOS updates reset app permissions:
+  
+  1. Open System Settings > Accessibility
+  2. Toggle TypeSteps **OFF** then **ON** again
+  3. Restart TypeSteps
+  4. If that doesn't work, remove and re-add TypeSteps to the list
+</Accordion>
+
+## Security & Privacy
+
+TypeSteps takes your privacy seriously:
+
+<Warning>
+  **What TypeSteps DOES track:**
+  - Number of keystrokes (count only)
+  - Application names where you type
+  - Project names (from window titles)
+  - Timestamps of typing activity
+</Warning>
+
+<Note>
+  **What TypeSteps DOES NOT track:**
+  - The actual text you type
+  - Passwords or sensitive data
+  - Keystroke content or sequences
+  - Mouse movements or clicks
+</Note>
+
+All data is stored locally on your Mac. Nothing is sent to external servers.
+
+## App Launch Behavior
+
+TypeSteps handles permissions smartly when launching (TypeStepsApp.swift:16-28):
+
+```swift
+private func checkAndStartTracking() {
+    let hasCompletedOnboarding = UserDefaults.standard.bool(forKey: "has_completed_onboarding")
+    
+    if hasCompletedOnboarding {
+        // Only start if permission already granted
+        if KeystrokeListener.shared.checkPermissionsSilently() {
+            KeystrokeListener.shared.startListening()
+        }
+    } else {
+        // Show onboarding flow
+        NotificationCenter.default.post(name: .showOnboarding, object: nil)
+    }
+}
+```
+
+This ensures:
+- Silent permission check on subsequent launches
+- No annoying prompts after initial setup
+- Automatic tracking start if permissions are valid
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Troubleshooting" icon="wrench" href="/guides/troubleshooting">
+    Fix common permission and tracking issues
+  </Card>
+  <Card title="Daily Goals" icon="target" href="/guides/daily-goals">
+    Start setting typing goals
+  </Card>
+</CardGroup>

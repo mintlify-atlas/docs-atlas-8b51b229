@@ -1,0 +1,528 @@
+---
+title: Troubleshooting
+description: Fix common issues with TypeSteps tracking, permissions, and data
+---
+
+This guide covers common issues you might encounter with TypeSteps and how to resolve them.
+
+## Quick Diagnostic Checklist
+
+Before diving into specific issues, check these common causes:
+
+- [ ] TypeSteps has Accessibility permissions enabled in System Settings
+- [ ] The app isn't paused (menu bar icon shows keyboard, not keyboard.badge.ellipsis)
+- [ ] You've completed the onboarding flow
+- [ ] TypeSteps is the latest version
+- [ ] macOS is up to date
+
+## Tracking Issues
+
+### App Not Tracking Keystrokes
+
+<Accordion title="Permissions Not Granted">
+  **Symptom**: Keystroke count stays at 0 even when typing
+  
+  **Solution**:
+  1. Open **System Settings** > **Privacy & Security** > **Accessibility**
+  2. Verify **TypeSteps** is in the list and toggled **ON**
+  3. If not in list, click **+** to manually add TypeSteps from Applications
+  4. Restart TypeSteps after enabling permissions
+  
+  See the [Permissions Guide](/guides/permissions) for detailed steps.
+</Accordion>
+
+<Accordion title="Tracking is Paused">
+  **Symptom**: Counts stopped increasing, menu bar shows keyboard with badge icon
+  
+  **Solution**:
+  1. Click the TypeSteps menu bar icon
+  2. Click **Resume Tracking** (or press Cmd+Shift+P)
+  3. Verify the icon changes back to regular keyboard symbol
+  
+  From TypeStepsApp.swift:62-64:
+  ```swift
+  Button(listener.isPaused ? "Resume Tracking" : "Pause Tracking") {
+      listener.isPaused.toggle()
+  }
+  ```
+</Accordion>
+
+<Accordion title="Event Monitor Not Started">
+  **Symptom**: App shows permissions granted but still not tracking
+  
+  **Cause**: The keystroke listener didn't start after onboarding
+  
+  **Solution**:
+  1. Quit TypeSteps completely (Cmd+Q from menu bar)
+  2. Relaunch the app
+  3. The listener should auto-start if permissions are valid (TypeStepsApp.swift:21-23):
+  
+  ```swift
+  if KeystrokeListener.shared.checkPermissionsSilently() {
+      KeystrokeListener.shared.startListening()
+  }
+  ```
+</Accordion>
+
+<Accordion title="Onboarding Not Completed">
+  **Symptom**: App keeps showing welcome screen
+  
+  **Solution**:
+  1. Complete the onboarding flow fully
+  2. Grant Accessibility permissions when prompted
+  3. Check that `has_completed_onboarding` is set:
+  
+  ```swift
+  UserDefaults.standard.bool(forKey: "has_completed_onboarding")
+  ```
+  
+  If stuck, reset onboarding:
+  ```bash
+  defaults delete com.yourcompany.TypeSteps has_completed_onboarding
+  ```
+  Then restart TypeSteps.
+</Accordion>
+
+### Tracking Only Some Apps
+
+<Accordion title="App-Specific Tracking Issues">
+  **Symptom**: Keystrokes counted in some apps but not others
+  
+  **Possible causes**:
+  1. **Sandboxed apps**: Some apps with strict sandboxing may block event monitoring
+  2. **Secure input**: Apps like password managers enable secure input mode
+  3. **Virtual machines**: Keystrokes in VMs may not be captured
+  
+  **Solution**:
+  - For secure input apps: This is by design for security
+  - For VMs: TypeSteps only tracks host Mac keystrokes
+  - For other apps: Ensure they're not requiring elevated privileges
+</Accordion>
+
+### Inaccurate Counts
+
+<Accordion title="Counts Too High or Too Low">
+  **Counts too high**:
+  - Holding down keys (key repeat) is counted
+  - Multiple keyboards connected
+  - Accessibility shortcuts triggering
+  
+  **Counts too low**:
+  - Some keystrokes filtered out (KeystrokeListener.swift:54-61):
+  
+  ```swift
+  for char in characters {
+      if char.isLetter || char.isNumber || char.isPunctuation || char.isWhitespace {
+          // Only these characters are counted
+      }
+  }
+  ```
+  
+  Function keys, modifiers (Cmd, Option, etc.), and special keys are not counted.
+</Accordion>
+
+## Permission Issues
+
+### Permission Prompt Not Appearing
+
+<Accordion title="System Dialog Won't Show">
+  **Solution**:
+  1. Open System Settings > Privacy & Security > Accessibility
+  2. Remove TypeSteps from the list if present
+  3. Restart your Mac
+  4. Launch TypeSteps - the prompt should now appear
+  
+  If still not working:
+  ```bash
+  # Reset accessibility permissions database (macOS Monterey+)
+  tccutil reset Accessibility
+  ```
+  
+  Then restart and try again.
+</Accordion>
+
+### Permission Granted But Not Working
+
+<Accordion title="Checkbox Enabled But No Tracking">
+  **Try these steps in order**:
+  
+  1. **Toggle permission off and on**:
+     - System Settings > Accessibility
+     - Turn TypeSteps OFF
+     - Turn TypeSteps ON
+     - Restart TypeSteps
+  
+  2. **Re-add the app**:
+     - Remove TypeSteps from Accessibility list
+     - Click + button
+     - Add TypeSteps.app from Applications
+     - Enable it
+  
+  3. **Check for multiple installations**:
+     - Search for duplicate TypeSteps in /Applications
+     - Remove all copies
+     - Reinstall from single source
+  
+  4. **Verify correct app version**:
+     - Ensure the one in Accessibility matches the one you're running
+     - Check bundle identifier matches
+</Accordion>
+
+### Permission Revoked After Update
+
+<Accordion title="Lost Permissions After macOS Update">
+  **Common issue**: macOS updates sometimes reset app permissions
+  
+  **Solution**:
+  1. Open System Settings > Accessibility
+  2. TypeSteps should still be in the list
+  3. Toggle it OFF then ON again
+  4. If not in list, re-add it
+  5. Restart TypeSteps
+  
+  This is a known macOS behavior - consider exporting your data before major OS updates.
+</Accordion>
+
+## Data & Statistics Issues
+
+### Stats Not Showing in Dashboard
+
+<Accordion title="Dashboard Shows Zero Everywhere">
+  **Possible causes**:
+  
+  1. **Fresh install**: No data collected yet
+     - Start typing and wait a few seconds
+     - Stats should appear immediately
+  
+  2. **Data corruption**:
+     - Check Console.app for errors
+     - Try exporting data (tests if data exists)
+     - If export works, data is intact
+  
+  3. **UserDefaults cleared**:
+     - Data may have been reset
+     - Check if you have a backup to import
+  
+  4. **Different user account**:
+     - TypeSteps data is per-macOS-user
+     - Verify you're in the correct account
+</Accordion>
+
+<Accordion title="Historical Data Missing">
+  **Symptom**: Today's data shows, but past days are empty
+  
+  **Check**:
+  1. Export your data and examine the JSON
+  2. Look for `dailyStats` entries with past dates
+  3. If empty, data was likely reset or never collected
+  
+  **Solution**:
+  - If you have a backup, import it
+  - Otherwise, data cannot be recovered
+  - Set up regular backups going forward
+</Accordion>
+
+### Menu Bar Stats vs Dashboard Mismatch
+
+<Accordion title="Numbers Don't Match">
+  **Usually caused by**:
+  - Caching/refresh delay
+  - UI not updating in real-time
+  
+  **Solution**:
+  1. Close and reopen the dashboard window
+  2. Click menu bar to refresh
+  3. Quit and restart TypeSteps if issue persists
+  
+  The menu bar and dashboard pull from the same data source (StorageManager.swift:104):
+  ```swift
+  func getCount(for date: Date = Date()) -> Int { 
+      return dailyStats[dateFormatter.string(from: date)] ?? 0 
+  }
+  ```
+</Accordion>
+
+## WakaTime Integration Issues
+
+### WakaTime Data Not Showing
+
+<Accordion title="No WakaTime Stats in Dashboard">
+  **Check these steps**:
+  
+  1. **API Key configured**:
+     - Settings > WakaTime API Key field is filled
+     - Key is correct (test at wakatime.com)
+  
+  2. **WakaTime has data for today**:
+     - Visit wakatime.com/dashboard
+     - Verify you've coded today
+     - Wait for WakaTime to process (can take 5-15 minutes)
+  
+  3. **Network connectivity**:
+     - Ensure your Mac can reach wakatime.com
+     - Check firewall settings
+  
+  4. **Fetch error**:
+     - WakaTimeManager shows `lastError` if fetch fails
+     - Check Console.app for "WakaTime Fetch Error"
+</Accordion>
+
+<Accordion title="Authentication Failed Error">
+  **Error message**: "WakaTime Fetch Error: Authentication failed"
+  
+  **Cause**: Invalid API key
+  
+  **Solution**:
+  1. Go to wakatime.com > Settings > Account
+  2. Copy your secret API key (not the public one)
+  3. Paste into TypeSteps settings
+  4. Ensure no extra spaces or characters
+  
+  The API uses Base64 encoding (WakaTimeManager.swift:16-18):
+  ```swift
+  let credentialData = apiKey.data(using: .utf8)!
+  let base64Credentials = credentialData.base64EncodedString()
+  ```
+</Accordion>
+
+<Accordion title="Zero Minutes Despite Coding">
+  **Symptom**: WakaTime connected but shows 0 minutes
+  
+  **Reasons**:
+  1. **No coding today yet**: WakaTime only shows today's data
+  2. **WakaTime not installed in editors**: Install WakaTime plugins
+  3. **Time zone differences**: WakaTime "today" may be different timezone
+  4. **WakaTime sync delay**: Wait 15 minutes after coding
+  
+  **Debug**:
+  - Manually check WakaTime API:
+    ```bash
+    curl -H "Authorization: Basic $(echo -n YOUR_API_KEY | base64)" \
+      "https://wakatime.com/api/v1/users/current/summaries?start=$(date +%Y-%m-%d)&end=$(date +%Y-%m-%d)"
+    ```
+</Accordion>
+
+## Goal & Notification Issues
+
+### Goal Notifications Not Appearing
+
+<Accordion title="Reached Goal But No Notification">
+  **Check**:
+  
+  1. **Notification permissions**:
+     - System Settings > Notifications > TypeSteps
+     - Ensure "Allow Notifications" is ON
+  
+  2. **Already notified today**:
+     - TypeSteps only notifies once per milestone per day
+     - Check `notifiedMilestones` in exported data
+  
+  3. **Goal not set**:
+     - Verify daily goal is configured (not 0)
+     - Settings > Daily Goal
+  
+  4. **Do Not Disturb**:
+     - macOS Focus modes may block notifications
+     - Check Focus settings
+</Accordion>
+
+<Accordion title="Multiple Notifications for Same Goal">
+  **Should not happen**: TypeSteps tracks notified milestones
+  
+  If it does:
+  1. Export your data
+  2. Check `notifiedMilestones` structure
+  3. May indicate data saving issue
+  4. Restart app to clear state
+</Accordion>
+
+## App Performance Issues
+
+### High CPU Usage
+
+<Accordion title="TypeSteps Using Too Much CPU">
+  **Normal behavior**:
+  - TypeSteps monitors global keyboard events
+  - Should use less than 1% CPU when idle
+  - Brief spikes when typing are normal
+  
+  **If consistently high**:
+  1. Check Activity Monitor for exact usage
+  2. Quit and restart TypeSteps
+  3. Remove and re-grant Accessibility permissions
+  4. Check for macOS or TypeSteps updates
+  
+  **Performance optimization**:
+  - Minute stats are pruned to 120 entries (StorageManager.swift:70-73)
+  - Events are handled on main thread efficiently
+</Accordion>
+
+### App Won't Launch
+
+<Accordion title="TypeSteps Crashes on Startup">
+  **Troubleshooting steps**:
+  
+  1. **Check crash logs**:
+     - Open Console.app
+     - Search for TypeSteps crashes
+     - Look for error messages
+  
+  2. **Reset preferences**:
+     ```bash
+     # Backup first
+     defaults export com.yourcompany.TypeSteps ~/typesteps-prefs.plist
+     
+     # Reset
+     defaults delete com.yourcompany.TypeSteps
+     ```
+  
+  3. **Reinstall app**:
+     - Delete TypeSteps from Applications
+     - Empty Trash
+     - Download and reinstall fresh copy
+  
+  4. **Check macOS compatibility**:
+     - Verify TypeSteps supports your macOS version
+     - Update macOS if needed
+</Accordion>
+
+## Data Export/Import Issues
+
+### Export Fails or Creates Empty File
+
+<Accordion title="Can't Export Data">
+  **Possible causes**:
+  
+  1. **No data to export**:
+     - Start typing to generate some statistics
+     - Check dashboard shows non-zero counts
+  
+  2. **File permissions**:
+     - Try saving to Desktop instead
+     - Check folder write permissions
+  
+  3. **Encoding error**:
+     - Check Console.app for JSON encoding errors
+     - May indicate corrupt data structure
+  
+  **Verify data exists**:
+  ```swift
+  StorageManager.shared.getTotalAllTime() // Should be > 0
+  ```
+</Accordion>
+
+### Import Fails with Error
+
+<Accordion title="Cannot Import Backup File">
+  **Error handling** (StorageManager.swift:345-347):
+  ```swift
+  guard let backup = try? JSONDecoder().decode(BackupData.self, from: data) else { 
+      return false 
+  }
+  ```
+  
+  **Common reasons**:
+  
+  1. **Invalid JSON**:
+     - File corrupted during transfer
+     - Manually edited incorrectly
+     - Wrong file selected
+     
+     **Fix**: Validate JSON at jsonlint.com
+  
+  2. **Version mismatch**:
+     - Backup from newer TypeSteps version
+     - Missing required fields
+     
+     **Fix**: Ensure same or compatible version
+  
+  3. **File encoding**:
+     - Opened and saved in wrong text editor
+     - UTF-8 encoding required
+     
+     **Fix**: Use original export file, don't edit
+</Accordion>
+
+## Getting More Help
+
+### Diagnostic Information to Collect
+
+Before reporting issues, gather:
+
+1. **macOS version**: System Settings > About
+2. **TypeSteps version**: About TypeSteps menu
+3. **Console logs**:
+   - Open Console.app
+   - Filter for "TypeSteps"
+   - Copy relevant error messages
+4. **Accessibility status**:
+   - System Settings > Accessibility > TypeSteps status
+5. **Expected vs actual behavior**
+
+### Debug Mode
+
+<Note>
+  Check Console.app while running TypeSteps to see debug output:
+  
+  - "WakaTime Fetch Error: ..."
+  - Permission check results
+  - Data save/load operations
+  
+  Filter by "TypeSteps" or "keystroke" to find relevant logs.
+</Note>
+
+### Reset to Factory State
+
+<Warning>
+  **Nuclear option**: Complete reset of TypeSteps
+  
+  ```bash
+  # Export data first!
+  # Then:
+  
+  # Remove all preferences
+  defaults delete com.yourcompany.TypeSteps
+  
+  # Remove from Accessibility
+  # (System Settings > Accessibility > remove TypeSteps)
+  
+  # Delete app
+  rm -rf /Applications/TypeSteps.app
+  
+  # Reinstall fresh
+  ```
+  
+  This removes all data, settings, and permissions. Only use if other solutions fail.
+</Warning>
+
+## Prevention Tips
+
+<Steps>
+  <Step title="Regular Backups">
+    Export your data monthly or after reaching milestones - see [Data Management](/guides/data-management)
+  </Step>
+  
+  <Step title="Keep Updated">
+    Update TypeSteps and macOS regularly for bug fixes
+  </Step>
+  
+  <Step title="Monitor Permissions">
+    Check Accessibility permissions after macOS updates
+  </Step>
+  
+  <Step title="Test After Changes">
+    After changing settings, verify tracking still works
+  </Step>
+</Steps>
+
+## Still Need Help?
+
+If none of these solutions work:
+
+1. **Check for known issues**: Visit the TypeSteps website or repository
+2. **Report bugs**: Provide diagnostic info collected above
+3. **Community forums**: Other users may have encountered similar issues
+
+<Note>
+  Most issues are related to permissions or onboarding. Double-check the [Permissions Guide](/guides/permissions) first.
+</Note>

@@ -1,0 +1,175 @@
+---
+title: WakaTime Integration
+description: Connect your WakaTime account to compare coding time with typing metrics
+---
+
+TypeSteps integrates with WakaTime to help you compare your typing activity with your actual coding time, giving you insights into your typing density (strokes per minute while coding).
+
+## Overview
+
+The WakaTime integration fetches your daily coding statistics and displays them alongside your typing metrics in the TypeSteps dashboard. This allows you to:
+
+- Compare typing activity vs. actual coding time
+- Calculate typing density (keystrokes per minute of coding)
+- Identify productive coding sessions
+- Understand your typing patterns during development work
+
+## Setting Up WakaTime Integration
+
+<Steps>
+  <Step title="Get Your WakaTime API Key">
+    1. Log in to your [WakaTime account](https://wakatime.com)
+    2. Navigate to **Settings** > **Account**
+    3. Scroll down to the **API Key** section
+    4. Copy your secret API key
+
+    <Warning>
+      Keep your API key private. Never share it or commit it to version control.
+    </Warning>
+  </Step>
+
+  <Step title="Add API Key to TypeSteps">
+    1. Open TypeSteps dashboard
+    2. Navigate to **Settings** or **Integrations**
+    3. Paste your WakaTime API key in the **WakaTime API Key** field
+    4. The app will automatically save your key to secure storage
+
+    ```swift
+    // Stored securely in UserDefaults
+    @AppStorage("wakatime_api_key") var wakaTimeApiKey: String = ""
+    ```
+  </Step>
+
+  <Step title="View Your Stats">
+    Once configured, TypeSteps will automatically fetch your WakaTime data daily. The dashboard will display:
+    - Total coding minutes for today
+    - Comparison with your typing activity
+    - Typing density metrics
+  </Step>
+</Steps>
+
+## How It Works
+
+TypeSteps uses the WakaTime API to fetch your daily coding statistics:
+
+```swift
+// API endpoint called daily
+GET https://wakatime.com/api/v1/users/current/summaries
+  ?start=2026-03-03
+  &end=2026-03-03
+```
+
+The integration:
+1. Encodes your API key in Base64 format
+2. Sends an authenticated request to WakaTime's API
+3. Fetches today's cumulative coding time
+4. Converts seconds to minutes for display
+5. Updates the dashboard in real-time
+
+<Note>
+  The API key is sent using HTTP Basic Authentication with the format:
+  `Authorization: Basic <base64-encoded-api-key>`
+</Note>
+
+## Understanding Density Metrics
+
+**Typing Density** is calculated as:
+
+```
+Density = Total Keystrokes / WakaTime Minutes
+```
+
+This metric helps you understand:
+- **High density**: Lots of typing during coding sessions (writing new code, documentation)
+- **Low density**: Reading code, debugging, or thinking time
+- **Baseline density**: Your typical keystrokes per minute when actively coding
+
+<Accordion title="Example Density Calculation">
+  If you have:
+  - 10,000 keystrokes today
+  - 120 minutes of coding time (from WakaTime)
+  
+  Your typing density = 10,000 / 120 = **83 strokes per minute**
+
+  This is your actual typing rate while coding, different from raw typing speed tests.
+</Accordion>
+
+## Troubleshooting
+
+### Data Not Showing
+
+If WakaTime data isn't appearing:
+
+1. **Verify API Key**: Ensure your API key is correct and hasn't expired
+2. **Check WakaTime Setup**: Make sure WakaTime plugins are installed in your code editors
+3. **Wait for Sync**: Data syncs when you open the dashboard or periodically
+4. **Check Network**: Ensure your Mac has internet connectivity
+
+### Error Messages
+
+<Accordion title="Authentication Failed">
+  **Cause**: Invalid or expired API key
+  
+  **Solution**: 
+  1. Go to WakaTime settings and regenerate your API key
+  2. Update the key in TypeSteps
+  3. Restart the app if needed
+</Accordion>
+
+<Accordion title="No Data for Today">
+  **Cause**: You haven't coded yet today, or WakaTime hasn't synced
+  
+  **Solution**:
+  1. Code in any editor with WakaTime installed
+  2. Wait a few minutes for WakaTime to process
+  3. Refresh TypeSteps dashboard
+</Accordion>
+
+## Privacy & Security
+
+TypeSteps handles your WakaTime data with care:
+
+- API keys are stored locally on your Mac using `UserDefaults`
+- No data is sent to TypeSteps servers (app is local-only)
+- WakaTime data is fetched directly from WakaTime's API
+- Data is only stored in memory during your session
+
+<Note>
+  TypeSteps is a privacy-focused app. All data stays on your device.
+</Note>
+
+## API Reference
+
+The WakaTimeManager implementation (from WakaTimeManager.swift:13-49):
+
+```swift
+func fetchTodayStats(apiKey: String) {
+    guard !apiKey.isEmpty else { return }
+    
+    let credentialData = apiKey.data(using: .utf8)!
+    let base64Credentials = credentialData.base64EncodedString()
+    
+    let today = Date()
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd"
+    let dateString = formatter.string(from: today)
+    
+    let url = URL(string: "https://wakatime.com/api/v1/users/current/summaries?start=\(dateString)&end=\(dateString)")!
+    
+    var request = URLRequest(url: url)
+    request.setValue("Basic \(base64Credentials)", forHTTPHeaderField: "Authorization")
+    
+    // Fetches and decodes response
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Daily Goals" icon="target" href="/guides/daily-goals">
+    Set typing goals and track your progress
+  </Card>
+  <Card title="Data Management" icon="database" href="/guides/data-management">
+    Export and backup your typing data
+  </Card>
+</CardGroup>

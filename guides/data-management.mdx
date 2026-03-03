@@ -1,0 +1,424 @@
+---
+title: Data Management
+description: Export, import, backup, and reset your typing statistics
+---
+
+TypeSteps provides comprehensive data management tools to backup your typing statistics, transfer data between devices, and start fresh when needed.
+
+## Overview
+
+Your TypeSteps data includes:
+
+- **Daily statistics**: Keystroke counts per day
+- **Hourly statistics**: Activity breakdown by hour
+- **Minute statistics**: Recent per-minute activity (last 2 hours)
+- **App statistics**: Keystrokes per application
+- **Project statistics**: Keystrokes per project/repository
+- **Settings**: WakaTime API key, daily goals
+- **Milestone notifications**: Which goals you've already been notified about
+
+All data is stored locally on your Mac using `UserDefaults`.
+
+## Exporting Your Data
+
+### How to Export
+
+1. Open the TypeSteps dashboard
+2. Navigate to **Settings** > **Data Management**
+3. Click **Export Data**
+4. Choose a location to save the file
+5. Your data will be saved as a JSON file (e.g., `typesteps-backup-2026-03-03.json`)
+
+### What Gets Exported
+
+The export includes all your data in JSON format (StorageManager.swift:324-343):
+
+```swift
+func exportData() -> Data? {
+    let notified = UserDefaults.standard.dictionary(forKey: notifiedKey) as? [String: [Double]] ?? [:]
+    let goal = UserDefaults.standard.integer(forKey: "daily_goal")
+    
+    let backup = BackupData(
+        dailyStats: dailyStats,
+        hourlyStats: hourlyStats,
+        minuteStats: minuteStats,
+        appStats: appStats,
+        projectStats: projectStats,
+        appBundleMapping: appBundleMapping,
+        notifiedMilestones: notified,
+        wakaTimeApiKey: wakaTimeApiKey,
+        dailyGoal: goal
+    )
+    
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = .prettyPrinted
+    return try? encoder.encode(backup)
+}
+```
+
+### Export File Structure
+
+The exported JSON file contains:
+
+```json
+{
+  "dailyStats": {
+    "2026-03-01": 15234,
+    "2026-03-02": 18956,
+    "2026-03-03": 12450
+  },
+  "hourlyStats": {
+    "2026-03-03-09": 1250,
+    "2026-03-03-10": 2340,
+    "2026-03-03-11": 1890
+  },
+  "minuteStats": {
+    "2026-03-03-11-30": 45,
+    "2026-03-03-11-31": 52
+  },
+  "appStats": {
+    "Visual Studio Code": 45000,
+    "Xcode": 38000,
+    "Safari": 12000
+  },
+  "projectStats": {
+    "typesteps": 25000,
+    "my-app": 18000
+  },
+  "appBundleMapping": {
+    "Visual Studio Code": "com.visualstudio.code",
+    "Xcode": "com.apple.dt.xcode"
+  },
+  "notifiedMilestones": {
+    "2026-03-01": [1.0],
+    "2026-03-02": [1.0]
+  },
+  "wakaTimeApiKey": "your-api-key-here",
+  "dailyGoal": 15000
+}
+```
+
+<Warning>
+  Your export file contains your WakaTime API key. Keep it secure and don't share it publicly.
+</Warning>
+
+## Importing Data
+
+### How to Import
+
+1. Open the TypeSteps dashboard
+2. Navigate to **Settings** > **Data Management**
+3. Click **Import Data**
+4. Select your previously exported JSON file
+5. Confirm the import
+
+<Warning>
+  **Importing will replace ALL current data** with the data from the backup file. Make sure to export your current data first if you want to keep it.
+</Warning>
+
+### Import Process
+
+The import process (StorageManager.swift:345-363):
+
+```swift
+func importData(from data: Data) -> Bool {
+    guard let backup = try? JSONDecoder().decode(BackupData.self, from: data) else { 
+        return false 
+    }
+    
+    DispatchQueue.main.async {
+        self.dailyStats = backup.dailyStats
+        self.hourlyStats = backup.hourlyStats
+        self.minuteStats = backup.minuteStats
+        self.appStats = backup.appStats
+        self.projectStats = backup.projectStats
+        self.appBundleMapping = backup.appBundleMapping
+        self.wakaTimeApiKey = backup.wakaTimeApiKey
+        
+        UserDefaults.standard.set(backup.dailyGoal, forKey: "daily_goal")
+        UserDefaults.standard.set(backup.notifiedMilestones, forKey: self.notifiedKey)
+        
+        self.saveStats()
+    }
+    return true
+}
+```
+
+The import:
+1. Validates the JSON structure
+2. Decodes the backup data
+3. Replaces all current statistics
+4. Restores your settings (API key, goals)
+5. Saves everything to UserDefaults
+6. Updates the UI immediately
+
+### Import Validation
+
+<Accordion title="Invalid File Format">
+  **Error**: "Invalid backup file"
+  
+  **Causes**:
+  - File is corrupted
+  - JSON structure doesn't match expected format
+  - File was manually edited incorrectly
+  
+  **Solution**:
+  - Use only files exported by TypeSteps
+  - Don't manually edit export files
+  - Try exporting a fresh backup and compare structure
+</Accordion>
+
+<Accordion title="Partial Import">
+  TypeSteps imports ALL or NOTHING. If any field is invalid, the entire import fails.
+  
+  This prevents partial/corrupted data states.
+</Accordion>
+
+## Use Cases
+
+### 1. Backup Before Reset
+
+<Steps>
+  <Step title="Export current data">
+    Save your complete history before resetting
+  </Step>
+  
+  <Step title="Reset statistics">
+    Clear all data to start fresh
+  </Step>
+  
+  <Step title="Keep backup">
+    Store the export file for future reference or restore
+  </Step>
+</Steps>
+
+### 2. Transfer to New Mac
+
+<Steps>
+  <Step title="Export on old Mac">
+    Export all your typing data from your current machine
+  </Step>
+  
+  <Step title="Transfer file">
+    Copy the JSON file to your new Mac (AirDrop, iCloud, USB, etc.)
+  </Step>
+  
+  <Step title="Import on new Mac">
+    Install TypeSteps on new Mac and import the backup file
+  </Step>
+  
+  <Step title="Verify">
+    Check that all statistics, goals, and settings are restored correctly
+  </Step>
+</Steps>
+
+### 3. Merge Data from Multiple Devices
+
+<Note>
+  TypeSteps doesn't automatically merge data. To combine statistics from multiple devices:
+  
+  1. Export from each device
+  2. Manually merge the JSON files (combine the stats objects)
+  3. Import the merged file
+  
+  This requires manual JSON editing and is advanced.
+</Note>
+
+### 4. Periodic Backups
+
+Set a reminder to export your data:
+
+- **Weekly**: If you're building streaks and don't want to lose progress
+- **Monthly**: For regular users who want historical records
+- **Before macOS updates**: System updates can sometimes affect app data
+
+## Resetting Your Data
+
+### Full Reset
+
+To completely erase all typing statistics:
+
+1. Open the TypeSteps dashboard
+2. Navigate to **Settings** > **Data Management**
+3. Click **Reset All Data**
+4. Confirm the action (this cannot be undone without a backup)
+
+<Warning>
+  **This action is permanent!** Export your data first if you might want to restore it later.
+</Warning>
+
+### What Gets Reset
+
+The reset function (StorageManager.swift:365-391):
+
+```swift
+func resetStats() {
+    dailyStats = [:]
+    hourlyStats = [:]
+    minuteStats = [:]
+    appStats = [:]
+    projectStats = [:]
+    appBundleMapping = [:]
+    
+    UserDefaults.standard.removeObject(forKey: statsKey)
+    UserDefaults.standard.removeObject(forKey: hourlyKey)
+    UserDefaults.standard.removeObject(forKey: minuteKey)
+    UserDefaults.standard.removeObject(forKey: appStatsKey)
+    UserDefaults.standard.removeObject(forKey: projectStatsKey)
+    UserDefaults.standard.removeObject(forKey: appBundleMappingKey)
+    UserDefaults.standard.removeObject(forKey: notifiedKey)
+    
+    // Note: WakaTime API key and daily goal are preserved
+    
+    saveStats()
+}
+```
+
+**Cleared**:
+- All keystroke statistics
+- App and project tracking data
+- Hourly and minute-level data
+- Milestone notification history
+
+**Preserved**:
+- WakaTime API key (so you don't need to re-enter)
+- Daily goal setting (maintains your configured goal)
+
+<Note>
+  If you want to reset everything including settings, you can manually clear the API key and goal after resetting stats.
+</Note>
+
+### Partial Reset Options
+
+TypeSteps doesn't have built-in partial reset, but you can manually edit an export file:
+
+<Accordion title="Reset Just App Stats">
+  1. Export your data
+  2. Open the JSON file
+  3. Clear the `appStats` and `appBundleMapping` objects: `{}`
+  4. Import the modified file
+</Accordion>
+
+<Accordion title="Reset Old Data (Keep Recent)">
+  1. Export your data
+  2. Open the JSON file
+  3. Remove old entries from `dailyStats` and `hourlyStats`
+  4. Import the modified file
+</Accordion>
+
+<Accordion title="Keep Stats, Reset Settings">
+  1. Export your data
+  2. Open the JSON file
+  3. Modify `wakaTimeApiKey` and `dailyGoal` to new values
+  4. Import the modified file
+</Accordion>
+
+## Data Storage Details
+
+### Storage Location
+
+All data is stored in macOS UserDefaults:
+
+```swift
+private let statsKey = "typing_stats_daily"
+private let hourlyKey = "typing_stats_hourly" 
+private let minuteKey = "typing_stats_minute"
+private let appStatsKey = "typing_stats_apps"
+private let projectStatsKey = "typing_stats_projects"
+private let appBundleMappingKey = "typing_app_bundles"
+private let notifiedKey = "typing_notified_milestones"
+```
+
+UserDefaults location:
+```
+~/Library/Preferences/[bundle-id].plist
+```
+
+### Data Retention
+
+- **Daily stats**: Kept forever
+- **Hourly stats**: Kept forever
+- **Minute stats**: Last 120 minutes only (automatically pruned)
+- **App/Project stats**: Kept forever
+
+<Note>
+  Minute-level stats are automatically cleaned to save space (StorageManager.swift:70-73):
+  
+  ```swift
+  if minuteStats.count > 120 {
+      let keys = minuteStats.keys.sorted().prefix(minuteStats.count - 120)
+      for key in keys { minuteStats.removeValue(forKey: key) }
+  }
+  ```
+</Note>
+
+## Backup Best Practices
+
+<Steps>
+  <Step title="Regular Schedule">
+    Export monthly or after significant milestones
+  </Step>
+  
+  <Step title="Multiple Locations">
+    Store backups in multiple places:
+    - Local external drive
+    - iCloud Drive
+    - Time Machine backups
+  </Step>
+  
+  <Step title="Test Restores">
+    Occasionally test importing a backup to ensure it works
+  </Step>
+  
+  <Step title="Secure Storage">
+    Remember backups contain your WakaTime API key - keep them secure
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<Accordion title="Export Button Does Nothing">
+  **Possible causes**:
+  - No data to export yet (start typing first)
+  - File permission issues
+  
+  **Solution**:
+  - Verify you have write permissions to the save location
+  - Try saving to Desktop first
+  - Check Console.app for error messages
+</Accordion>
+
+<Accordion title="Import Fails Silently">
+  **Possible causes**:
+  - Invalid JSON format
+  - File corrupted during transfer
+  - Version incompatibility
+  
+  **Solution**:
+  - Validate JSON structure at jsonlint.com
+  - Try exporting fresh data and comparing structure
+  - Ensure file wasn't modified by text editor
+</Accordion>
+
+<Accordion title="Data Missing After Import">
+  **Check**:
+  - Did you import the correct file?
+  - Is the file from an old version of TypeSteps?
+  - Was the export incomplete?
+  
+  **Solution**:
+  - Open the JSON file and verify it contains your expected data
+  - Try importing again
+  - If still missing, restore from another backup
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Troubleshooting" icon="wrench" href="/guides/troubleshooting">
+    Fix data and tracking issues
+  </Card>
+  <Card title="Daily Goals" icon="target" href="/guides/daily-goals">
+    Protect your streak with backups
+  </Card>
+</CardGroup>

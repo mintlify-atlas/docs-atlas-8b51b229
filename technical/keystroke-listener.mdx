@@ -1,0 +1,320 @@
+---
+title: Keystroke Listener
+description: How TypeSteps monitors keyboard activity system-wide
+---
+
+The KeystrokeListener class handles all global keyboard monitoring using macOS Accessibility APIs.
+
+## Overview
+
+KeystrokeListener is a singleton ObservableObject that:
+- Monitors all keyboard input system-wide
+- Filters for valid characters (letters, numbers, punctuation, whitespace)
+- Detects the active application and project
+- Respects pause state
+- Manages accessibility permissions
+
+```swift
+class KeystrokeListener: ObservableObject {
+    static let shared = KeystrokeListener()
+    
+    @Published var isAuthorized: Bool = false
+    @Published var isPaused: Bool = false
+    private var eventMonitor: Any?
+    private var permissionCheckTimer: Timer?
+}
+```
+
+See `KeystrokeListener.swift:5-12`
+
+## Accessibility Permissions
+
+### Checking Permissions
+
+TypeSteps requires Accessibility permissions to monitor global keyboard events. There are two methods:
+
+#### With Prompt (Interactive)
+
+```swift
+func checkPermissions() {
+    let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
+    let trusted = AXIsProcessTrustedWithOptions(options as CFDictionary)
+    DispatchQueue.main.async {
+        self.isAuthorized = trusted
+    }
+}
+```
+
+This shows the system dialog prompting the user to grant permission.
+
+See `KeystrokeListener.swift:15-21`
+
+#### Silent Check
+
+```swift
+func checkPermissionsSilently() -> Bool {
+    let trusted = AXIsProcessTrusted()
+    DispatchQueue.main.async {
+        self.isAuthorized = trusted
+    }
+    return trusted
+}
+```
+
+Checks permission status without showing the prompt.
+
+See `KeystrokeListener.swift:23-29`
+
+### AXIsProcessTrusted
+
+The `AXIsProcessTrusted()` function from ApplicationServices checks if the app has been granted Accessibility permissions in:
+
+**System Settings > Privacy & Security > Accessibility**
+
+Without this permission, `NSEvent.addGlobalMonitorForEvents` will not receive any events.
+
+## Global Event Monitoring
+
+### Starting the Listener
+
+```swift
+func startListening() {
+    guard eventMonitor == nil else { return }
+    eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in
+        self.handle(event: event)
+    }
+}
+```
+
+See `KeystrokeListener.swift:31-36`
+
+### NSEvent.addGlobalMonitorForEvents
+
+This AppKit API monitors events across all applications:
+
+- **matching: .keyDown**: Only captures key press events (not releases)
+- **Global scope**: Receives events from all apps, not just TypeSteps
+- **Event handler**: Closure called for each matching event
+- **Returns**: Monitor object that must be retained
+
+### Stopping the Listener
+
+```swift
+func stopListening() {
+    if let monitor = eventMonitor {
+        NSEvent.removeMonitor(monitor)
+        eventMonitor = nil
+    }
+}
+```
+
+See `KeystrokeListener.swift:38-43`
+
+## Event Processing
+
+### Handle Method
+
+Processes each keyboard event:
+
+```swift
+private func handle(event: NSEvent) {
+    // Respect the pause state
+    guard !isPaused else { return }
+    
+    let frontmost = NSWorkspace.shared.frontmostApplication
+    let appName = frontmost?.localizedName ?? "Unknown"
+    let bundleId = frontmost?.bundleIdentifier
+    let projectName = getProjectName(for: appName)
+    
+    guard let characters = event.charactersIgnoringModifiers else { return }
+    for char in characters {
+        if char.isLetter || char.isNumber || char.isPunctuation || char.isWhitespace {
+            DispatchQueue.main.async {
+                StorageManager.shared.incrementCount(
+                    appName: appName, 
+                    bundleId: bundleId, 
+                    projectName: projectName
+                )
+            }
+        }
+    }
+}
+```
+
+See `KeystrokeListener.swift:45-62`
+
+### Character Filtering
+
+Only specific character types are counted:
+
+```swift
+if char.isLetter || char.isNumber || char.isPunctuation || char.isWhitespace {
+    // Count this keystroke
+}
+```
+
+**What gets counted:**
+- Letters: `a-z`, `A-Z`
+- Numbers: `0-9`
+- Punctuation: `,`, `.`, `!`, `?`, `;`, `:`, etc.
+- Whitespace: Space, Tab, Enter
+
+**What gets ignored:**
+- Modifier keys alone: Shift, Ctrl, Cmd, Option
+- Function keys: F1-F12
+- Arrow keys
+- Escape, Delete, etc.
+- Media keys
+
+This ensures accurate "typing" metrics rather than all keyboard activity.
+
+## Application Detection
+
+### NSWorkspace.shared.frontmostApplication
+
+Detects which app is currently active:
+
+```swift
+let frontmost = NSWorkspace.shared.frontmostApplication
+let appName = frontmost?.localizedName ?? "Unknown"
+let bundleId = frontmost?.bundleIdentifier
+```
+
+This provides:
+- **localizedName**: User-facing app name (e.g., "Visual Studio Code")
+- **bundleIdentifier**: Unique app ID (e.g., "com.visualstudio.code")
+
+### Why Both Name and Bundle ID?
+
+- **Name**: For display in UI
+- **Bundle ID**: For reliable identification and categorization
+  - Apps can be renamed
+  - Bundle IDs never change
+  - Used to fetch app icons
+  - Used in categorization logic
+
+## Project Name Extraction
+
+### Strategy
+
+Extracts project names from window titles using app-specific patterns:
+
+```swift
+private func getProjectName(for appName: String) -> String? {
+    let systemWideElement = AXUIElementCreateSystemWide()
+    var focusedElement: CFTypeRef?
+    let result = AXUIElementCopyAttributeValue(
+        systemWideElement, 
+        kAXFocusedApplicationAttribute as CFString, 
+        &focusedElement
+    )
+    
+    guard result == .success, 
+          let focusedElement = focusedElement as! AXUIElement? else { 
+        return nil 
+    }
+    
+    var windowTitle: CFTypeRef?
+    AXUIElementCopyAttributeValue(
+        focusedElement, 
+        kAXTitleAttribute as CFString, 
+        &windowTitle
+    )
+    
+    guard let title = windowTitle as? String else { return nil }
+    
+    // Strategy: Extract based on app
+    if appName == "Xcode" {
+        // Xcode titles often look like "ProjectName — FileName.swift"
+        let components = title.components(separatedBy: " — ")
+        return components.first
+    } else if appName == "Visual Studio Code" || appName == "Cursor" {
+        // VS Code usually "FileName - ProjectName"
+        let components = title.components(separatedBy: " - ")
+        if components.count >= 2 {
+            return components[components.count - 2]
+        }
+    }
+    
+    return nil
+}
+```
+
+See `KeystrokeListener.swift:64-90`
+
+### Accessibility API Usage
+
+**AXUIElementCreateSystemWide()**
+- Creates a reference to the system-wide accessibility element
+
+**kAXFocusedApplicationAttribute**
+- Gets the currently focused application's accessibility element
+
+**kAXTitleAttribute**
+- Retrieves the window title of the focused app
+
+### App-Specific Parsing
+
+#### Xcode
+Format: `"ProjectName — FileName.swift"`
+
+Extraction: Take first component before ` — `
+
+Example: `"typesteps — KeystrokeListener.swift"` → `"typesteps"`
+
+#### Visual Studio Code / Cursor
+Format: `"FileName - ProjectName - Visual Studio Code"`
+
+Extraction: Take second-to-last component
+
+Example: `"main.ts - my-app - Visual Studio Code"` → `"my-app"`
+
+### Limitations
+
+- Only works for apps with known title formats
+- Requires Accessibility permissions
+- Returns `nil` for unsupported apps
+- Terminal apps don't expose project names reliably
+
+## Pause/Resume Feature
+
+Users can pause tracking from the menu bar:
+
+```swift
+@Published var isPaused: Bool = false
+```
+
+When paused, the `handle()` method returns early:
+
+```swift
+guard !isPaused else { return }
+```
+
+The menu bar icon changes to reflect pause state:
+
+```swift
+Image(systemName: listener.isPaused ? "keyboard.badge.ellipsis" : "keyboard")
+```
+
+## Performance Considerations
+
+### Main Queue Dispatch
+
+The event handler runs on a background thread, so UI updates are dispatched to main:
+
+```swift
+DispatchQueue.main.async {
+    StorageManager.shared.incrementCount(...)
+}
+```
+
+### Minimal Processing
+
+The event handler is extremely lightweight:
+1. Check pause state (single boolean check)
+2. Get frontmost app (cached by system)
+3. Get window title (only when needed)
+4. Filter character
+5. Increment counter
+
+No heavy computation or I/O in the event handler ensures responsive typing.

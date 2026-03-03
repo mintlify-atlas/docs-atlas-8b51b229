@@ -1,0 +1,162 @@
+---
+title: Installation
+description: Install TypeSteps on your Mac via Homebrew or build it from source with Xcode.
+---
+
+# Installation
+
+TypeSteps can be installed using Homebrew (recommended) or built from source using Xcode.
+
+## Requirements
+
+Before installing, ensure your system meets these requirements:
+
+- macOS 13 or later
+- Apple Silicon or Intel Mac
+- For building from source: Xcode 16+ or compatible versions
+
+## Option 1: Homebrew (recommended)
+
+The easiest way to install TypeSteps is using Homebrew.
+
+<Steps>
+  <Step title="Add the custom tap">
+    Open Terminal and add the TypeSteps tap to Homebrew:
+    
+    ```bash
+    brew tap FALAK097/typesteps
+    ```
+  </Step>
+  
+  <Step title="Install the app">
+    Install TypeSteps as a cask:
+    
+    ```bash
+    brew install --cask typesteps
+    ```
+    
+    Homebrew will download and install TypeSteps to your Applications folder.
+  </Step>
+  
+  <Step title="Launch TypeSteps">
+    Open TypeSteps from your Applications folder or use Spotlight:
+    
+    ```bash
+    open -a TypeSteps
+    ```
+    
+    On first launch, you'll see the onboarding flow to grant necessary permissions.
+  </Step>
+</Steps>
+
+## Option 2: Build from source
+
+If you prefer to build TypeSteps yourself or want to contribute to development, follow these steps.
+
+<Steps>
+  <Step title="Clone the repository">
+    Clone the TypeSteps repository from GitHub:
+    
+    ```bash
+    git clone https://github.com/FALAK097/typesteps.git
+    cd typesteps
+    ```
+  </Step>
+  
+  <Step title="Open in Xcode">
+    Open the Xcode project:
+    
+    ```bash
+    open typesteps.xcodeproj
+    ```
+    
+    <Note>
+      Ensure you have Xcode 16 or a compatible version installed. You can download Xcode from the Mac App Store.
+    </Note>
+  </Step>
+  
+  <Step title="Build and run">
+    In Xcode:
+    1. Select your Mac as the build destination
+    2. Click the **Run** button (or press `Cmd + R`)
+    3. Xcode will build the app and launch it
+    
+    For a release build, select **Product > Archive** from the menu.
+  </Step>
+</Steps>
+
+## Granting permissions
+
+<Warning>
+  TypeSteps requires **Accessibility permissions** to track keystrokes system-wide. Without this permission, the app cannot function.
+</Warning>
+
+On first launch, TypeSteps will guide you through granting Accessibility permissions:
+
+1. The onboarding screen will explain why the permission is needed
+2. Click **Open System Settings** to be taken to the Accessibility settings
+3. In System Settings, navigate to **Privacy & Security > Accessibility**
+4. Toggle the switch next to TypeSteps to enable it
+5. Return to TypeSteps—it will automatically detect the permission and continue
+
+<Note>
+  If you don't see TypeSteps in the Accessibility list, try clicking the **+** button and manually adding it from your Applications folder.
+</Note>
+
+## Data storage
+
+All data is stored locally on your Mac using `UserDefaults`. TypeSteps tracks:
+
+- Daily character counts by date
+- Hourly and per-minute breakdowns
+- Per-application statistics
+- Project names (for supported IDEs)
+- Your WakaTime API key (if configured)
+- Daily goal settings
+
+<Note>
+  Characters are never transmitted over the internet unless you opt in to fetch developer stats via the WakaTime API.
+</Note>
+
+## Updating TypeSteps
+
+### Via Homebrew
+
+Update TypeSteps to the latest version:
+
+```bash
+brew upgrade --cask typesteps
+```
+
+### From source
+
+Pull the latest changes and rebuild:
+
+```bash
+cd typesteps
+git pull origin main
+```
+
+Then rebuild in Xcode.
+
+## Uninstalling
+
+### Via Homebrew
+
+```bash
+brew uninstall --cask typesteps
+```
+
+### Manual removal
+
+1. Drag TypeSteps from Applications to Trash
+2. Remove stored data:
+   ```bash
+   defaults delete com.yourcompany.typesteps
+   ```
+
+## Next steps
+
+<Card title="Quick start guide" icon="play" href="/quickstart">
+  Learn how to use TypeSteps and view your first stats
+</Card>

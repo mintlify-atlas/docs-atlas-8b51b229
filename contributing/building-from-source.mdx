@@ -1,0 +1,356 @@
+---
+title: Building from Source
+description: How to build and run TypeSteps locally
+---
+
+This guide walks through building TypeSteps from source code.
+
+## Prerequisites
+
+### System Requirements
+
+- **macOS**: 13.0 (Ventura) or later
+- **Mac**: Apple Silicon or Intel
+- **Xcode**: 16.0 or later
+- **Command Line Tools**: Latest version
+
+### Installing Xcode
+
+1. Download Xcode from the Mac App Store
+2. Open Xcode and accept license agreement
+3. Install additional components when prompted
+
+### Verify Installation
+
+```bash
+xcodebuild -version
+```
+
+Should output:
+```
+Xcode 16.0 (or later)
+Build version 16A...
+```
+
+## Clone Repository
+
+```bash
+git clone https://github.com/FALAK097/typesteps.git
+cd typesteps
+```
+
+## Project Structure
+
+The repository structure:
+
+```
+typesteps/
+├── typesteps.xcodeproj       # Xcode project file
+├── Sources/                  # Swift source files
+│   ├── TypeStepsApp.swift
+│   ├── KeystrokeListener.swift
+│   ├── StorageManager.swift
+│   ├── WakaTimeManager.swift
+│   ├── DashboardView.swift
+│   ├── WelcomeView.swift
+│   ├── Theme.swift
+│   └── Models.swift
+├── Assets.xcassets/          # App icons and images
+├── Info.plist               # App configuration
+└── README.md
+```
+
+## Build Steps
+
+### Option 1: Xcode GUI
+
+1. **Open Project**
+   
+   Double-click `typesteps.xcodeproj` or:
+   
+   ```bash
+   open typesteps.xcodeproj
+   ```
+
+2. **Select Target**
+   
+   In Xcode toolbar, ensure "typesteps" scheme is selected and "My Mac" is the destination.
+
+3. **Build**
+   
+   - Click Product > Build (⌘B)
+   - Or click the Play button to build and run (⌘R)
+
+4. **Run**
+   
+   Click the Play button or press ⌘R
+
+### Option 2: Command Line
+
+Build from terminal:
+
+```bash
+xcodebuild -project typesteps.xcodeproj \
+           -scheme typesteps \
+           -configuration Debug \
+           build
+```
+
+Run the built app:
+
+```bash
+open build/Debug/TypeSteps.app
+```
+
+## Configuration
+
+### Signing & Capabilities
+
+1. In Xcode, select the project in the navigator
+2. Select the "typesteps" target
+3. Go to "Signing & Capabilities" tab
+4. Set your development team
+5. Xcode will automatically manage signing
+
+### Required Entitlements
+
+The app requires these entitlements (already configured):
+
+```xml
+<key>com.apple.security.app-sandbox</key>
+<true/>
+<key>com.apple.security.automation.apple-events</key>
+<true/>
+```
+
+## First Launch
+
+### Grant Permissions
+
+On first run, TypeSteps will:
+
+1. **Show Onboarding**
+   
+   Welcome screen explaining the app
+
+2. **Request Accessibility Permission**
+   
+   Click "Grant Access" to open:
+   
+   **System Settings > Privacy & Security > Accessibility**
+   
+   Enable TypeSteps in the list.
+
+3. **Request Notification Permission**
+   
+   Allow notifications for daily goal reminders.
+
+### Debugging Permission Issues
+
+If keystroke tracking doesn't work:
+
+1. **Check Accessibility**
+   
+   ```swift
+   // In KeystrokeListener.swift
+   let trusted = AXIsProcessTrusted()
+   print("Accessibility authorized: \(trusted)")
+   ```
+
+2. **Manually Grant Permission**
+   
+   - Open System Settings
+   - Go to Privacy & Security > Accessibility
+   - Click the lock to make changes
+   - Add TypeSteps if not listed
+   - Check the checkbox next to TypeSteps
+
+3. **Restart the App**
+   
+   After granting permission, quit and relaunch.
+
+## Development Workflow
+
+### Hot Reload
+
+SwiftUI supports live previews:
+
+1. Open any View file (e.g., `DashboardView.swift`)
+2. Click "Resume" in the preview pane
+3. Edit code and see changes instantly
+
+### Debugging
+
+**Print Statements:**
+
+```swift
+print("Daily stats: \(storage.dailyStats)")
+print("Current count: \(storage.getCount())")
+```
+
+**Breakpoints:**
+
+1. Click line number gutter in Xcode
+2. Run app with debugger (⌘R)
+3. Code will pause at breakpoint
+4. Inspect variables in debug area
+
+**View Hierarchy:**
+
+1. Run app with debugger
+2. Click Debug View Hierarchy button in debug bar
+3. Inspect SwiftUI view tree
+
+### Testing Changes
+
+**Test Keystroke Counting:**
+
+1. Run the app
+2. Grant Accessibility permission
+3. Type in any application
+4. Check menu bar for count updates
+5. Open dashboard to verify stats
+
+**Test Data Persistence:**
+
+1. Type some characters
+2. Quit the app (⌘Q)
+3. Relaunch
+4. Verify counts persist
+
+**Clear Test Data:**
+
+```bash
+defaults delete com.yourteam.typesteps
+```
+
+Or use the "Reset Data" option in the app's data menu.
+
+## Build Configurations
+
+### Debug Build
+
+For development:
+
+```bash
+xcodebuild -configuration Debug
+```
+
+- Includes debug symbols
+- No optimizations
+- Enables console logging
+- Faster compilation
+
+### Release Build
+
+For distribution:
+
+```bash
+xcodebuild -configuration Release
+```
+
+- Optimized for performance
+- Smaller binary size
+- No debug symbols
+- Code signing required
+
+## Common Build Issues
+
+### Issue: "No signing identity found"
+
+**Solution:**
+
+1. Go to Signing & Capabilities in Xcode
+2. Select your development team
+3. Check "Automatically manage signing"
+
+### Issue: "Command Line Tools not found"
+
+**Solution:**
+
+```bash
+xcode-select --install
+```
+
+### Issue: "Target has been disabled"
+
+**Solution:**
+
+1. Select project in navigator
+2. Select the target
+3. Check "Enable Hardened Runtime"
+
+### Issue: "Accessibility permission not working"
+
+**Solution:**
+
+1. Fully quit the app
+2. Remove from Accessibility list in System Settings
+3. Rebuild and relaunch
+4. Grant permission again
+
+## Creating Distribution Build
+
+### Archive for Distribution
+
+1. **Set Scheme to Release**
+   
+   Product > Scheme > Edit Scheme
+   
+   Set Run configuration to "Release"
+
+2. **Archive**
+   
+   Product > Archive
+   
+   Wait for build to complete
+
+3. **Distribute**
+   
+   In Organizer:
+   - Select archive
+   - Click "Distribute App"
+   - Choose distribution method:
+     - Developer ID (for direct distribution)
+     - Mac App Store (for App Store release)
+
+### Export as .app
+
+For local distribution:
+
+1. Build in Release mode
+2. Find TypeSteps.app in build folder:
+   
+   ```bash
+   open ~/Library/Developer/Xcode/DerivedData
+   ```
+
+3. Navigate to:
+   
+   ```
+   TypeSteps-xxx/Build/Products/Release/TypeSteps.app
+   ```
+
+4. Copy to Applications or compress for sharing
+
+## Next Steps
+
+- Read [Architecture Guide](/technical/architecture) to understand code structure
+- Check [Contributing Guide](/contributing/overview) for code standards
+- Review [Data Storage](/technical/data-storage) to understand data flow
+- Explore [Keystroke Listener](/technical/keystroke-listener) for event monitoring details
+
+## Getting Help
+
+Stuck? Try these resources:
+
+1. Check existing GitHub issues
+2. Review Xcode build logs for errors
+3. Search Apple Developer documentation
+4. Open a new issue with:
+   - macOS version
+   - Xcode version
+   - Full error message
+   - Steps to reproduce
+
+Happy building!
