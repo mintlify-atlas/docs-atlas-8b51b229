@@ -78,7 +78,7 @@ Before diving into specific issues, check these common causes:
   
   If stuck, reset onboarding:
   ```bash
-  defaults delete com.yourcompany.TypeSteps has_completed_onboarding
+  defaults delete com.falakgala.typesteps has_completed_onboarding
   ```
   Then restart TypeSteps.
 </Accordion>
@@ -370,10 +370,10 @@ Before diving into specific issues, check these common causes:
   2. **Reset preferences**:
      ```bash
      # Backup first
-     defaults export com.yourcompany.TypeSteps ~/typesteps-prefs.plist
+     defaults export com.falakgala.typesteps ~/typesteps-prefs.plist
      
      # Reset
-     defaults delete com.yourcompany.TypeSteps
+     defaults delete com.falakgala.typesteps
      ```
   
   3. **Reinstall app**:
@@ -481,7 +481,7 @@ Before reporting issues, gather:
   # Then:
   
   # Remove all preferences
-  defaults delete com.yourcompany.TypeSteps
+  defaults delete com.falakgala.typesteps
   
   # Remove from Accessibility
   # (System Settings > Accessibility > remove TypeSteps)
