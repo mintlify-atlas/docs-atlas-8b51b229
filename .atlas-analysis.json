@@ -1,0 +1,91 @@
+{
+  "projectType": "saas",
+  "projectName": "TypeSteps",
+  "projectDescription": "A privacy-focused macOS app that passively tracks daily typing activity with insights across days, weeks, and months.",
+  "theme": "palm",
+  "primaryColor": "#4F46E5",
+  "lightColor": "#6366F1",
+  "darkColor": "#4338CA",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/keystroke-tracking",
+              "features/privacy",
+              "features/insights",
+              "features/menu-bar",
+              "features/themes"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "integrations/wakatime"
+            ]
+          },
+          {
+            "group": "User Guide",
+            "pages": [
+              "guides/permissions",
+              "guides/daily-goals",
+              "guides/data-management",
+              "guides/troubleshooting"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Technical",
+        "groups": [
+          {
+            "group": "Architecture",
+            "pages": [
+              "technical/architecture",
+              "technical/data-storage",
+              "technical/keystroke-listener"
+            ]
+          },
+          {
+            "group": "Contributing",
+            "pages": [
+              "contributing/overview",
+              "contributing/building-from-source"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "System-wide keystroke counting",
+    "Privacy-first design with local-only storage",
+    "Daily, weekly, and monthly insights",
+    "Menu bar integration",
+    "24 light and dark themes",
+    "WakaTime integration for developer metrics",
+    "Daily goal setting with notifications",
+    "App-level tracking and categorization",
+    "Data backup and restore",
+    "Year-round consistency heatmap"
+  ],
+  "publicApiSurface": [
+    "KeystrokeListener.shared - Global keystroke monitoring",
+    "StorageManager.shared - Data persistence and statistics",
+    "WakaTimeManager.shared - WakaTime API integration",
+    "AppTheme - 24 pre-defined themes",
+    "DashboardView - Main analytics interface",
+    "Menu bar actions: Pause/Resume, Open Dashboard, Open at Login, Quit"
+  ]
+}
